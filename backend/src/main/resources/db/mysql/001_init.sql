@@ -1,0 +1,266 @@
+CREATE DATABASE IF NOT EXISTS hq_training DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+USE hq_training;
+
+CREATE TABLE IF NOT EXISTS role (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    role_code VARCHAR(50) NOT NULL UNIQUE,
+    role_name VARCHAR(50) NOT NULL,
+    description VARCHAR(255),
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS user_account (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    display_name VARCHAR(100) NOT NULL,
+    email VARCHAR(100),
+    phone VARCHAR(30),
+    account_type VARCHAR(30) NOT NULL,
+    account_status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+    last_login_at DATETIME,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS user_role (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    role_id BIGINT NOT NULL,
+    created_at DATETIME NOT NULL,
+    CONSTRAINT uk_user_role UNIQUE (user_id, role_id),
+    CONSTRAINT fk_user_role_user FOREIGN KEY (user_id) REFERENCES user_account(id),
+    CONSTRAINT fk_user_role_role FOREIGN KEY (role_id) REFERENCES role(id)
+);
+
+CREATE TABLE IF NOT EXISTS customer_company (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    company_name VARCHAR(150) NOT NULL UNIQUE,
+    company_type VARCHAR(50),
+    contact_person VARCHAR(100),
+    contact_phone VARCHAR(30),
+    contact_email VARCHAR(100),
+    remark VARCHAR(255),
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS training_application (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    application_no VARCHAR(50) NOT NULL UNIQUE,
+    company_id BIGINT NOT NULL,
+    applicant_user_id BIGINT,
+    topic VARCHAR(200) NOT NULL,
+    expected_start_date DATE,
+    expected_end_date DATE,
+    attendee_count INT NOT NULL,
+    budget_amount DECIMAL(10,2),
+    requirement_desc TEXT,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    approval_comment VARCHAR(255),
+    approved_by BIGINT,
+    approved_at DATETIME,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    CONSTRAINT fk_application_company FOREIGN KEY (company_id) REFERENCES customer_company(id),
+    CONSTRAINT fk_application_applicant FOREIGN KEY (applicant_user_id) REFERENCES user_account(id),
+    CONSTRAINT fk_application_approver FOREIGN KEY (approved_by) REFERENCES user_account(id)
+);
+
+CREATE TABLE IF NOT EXISTS lecturer_profile (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT,
+    lecturer_no VARCHAR(50) NOT NULL UNIQUE,
+    full_name VARCHAR(100) NOT NULL,
+    title VARCHAR(100),
+    specialty VARCHAR(200),
+    phone VARCHAR(30),
+    email VARCHAR(100),
+    fee_standard DECIMAL(10,2),
+    profile_text TEXT,
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    CONSTRAINT fk_lecturer_user FOREIGN KEY (user_id) REFERENCES user_account(id)
+);
+
+CREATE TABLE IF NOT EXISTS student_profile (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT,
+    student_no VARCHAR(50) NOT NULL UNIQUE,
+    full_name VARCHAR(100) NOT NULL,
+    gender VARCHAR(10),
+    company_id BIGINT,
+    job_title VARCHAR(100),
+    education_level VARCHAR(50),
+    tech_level VARCHAR(50),
+    phone VARCHAR(30),
+    email VARCHAR(100),
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    CONSTRAINT fk_student_user FOREIGN KEY (user_id) REFERENCES user_account(id),
+    CONSTRAINT fk_student_company FOREIGN KEY (company_id) REFERENCES customer_company(id)
+);
+
+CREATE TABLE IF NOT EXISTS course (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    course_no VARCHAR(50) NOT NULL UNIQUE,
+    application_id BIGINT,
+    course_name VARCHAR(200) NOT NULL,
+    lecturer_id BIGINT,
+    executor_user_id BIGINT NOT NULL,
+    start_time DATETIME NOT NULL,
+    end_time DATETIME NOT NULL,
+    location VARCHAR(200) NOT NULL,
+    quota INT NOT NULL,
+    fee_amount DECIMAL(10,2) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
+    attachment_path VARCHAR(255),
+    source_type VARCHAR(30) DEFAULT 'SYSTEM',
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    CONSTRAINT fk_course_application FOREIGN KEY (application_id) REFERENCES training_application(id),
+    CONSTRAINT fk_course_lecturer FOREIGN KEY (lecturer_id) REFERENCES lecturer_profile(id),
+    CONSTRAINT fk_course_executor FOREIGN KEY (executor_user_id) REFERENCES user_account(id)
+);
+
+CREATE TABLE IF NOT EXISTS course_notice (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    course_id BIGINT NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    content TEXT NOT NULL,
+    registration_start_at DATETIME,
+    registration_end_at DATETIME,
+    status VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
+    published_at DATETIME,
+    external_publish_flag TINYINT NOT NULL DEFAULT 0,
+    created_by BIGINT NOT NULL,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    CONSTRAINT fk_notice_course FOREIGN KEY (course_id) REFERENCES course(id),
+    CONSTRAINT fk_notice_creator FOREIGN KEY (created_by) REFERENCES user_account(id)
+);
+
+CREATE TABLE IF NOT EXISTS enrollment (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    enrollment_no VARCHAR(50) NOT NULL UNIQUE,
+    course_id BIGINT NOT NULL,
+    student_id BIGINT NOT NULL,
+    payment_type VARCHAR(30) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    confirmed_by BIGINT,
+    confirmed_at DATETIME,
+    reject_reason VARCHAR(255),
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    CONSTRAINT uk_enrollment_course_student UNIQUE (course_id, student_id),
+    CONSTRAINT fk_enrollment_course FOREIGN KEY (course_id) REFERENCES course(id),
+    CONSTRAINT fk_enrollment_student FOREIGN KEY (student_id) REFERENCES student_profile(id),
+    CONSTRAINT fk_enrollment_confirmer FOREIGN KEY (confirmed_by) REFERENCES user_account(id)
+);
+
+CREATE TABLE IF NOT EXISTS attendance_record (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    enrollment_id BIGINT NOT NULL UNIQUE,
+    course_id BIGINT NOT NULL,
+    student_id BIGINT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'NOT_CHECKED_IN',
+    checked_in_at DATETIME,
+    checked_in_by BIGINT,
+    remark VARCHAR(255),
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    CONSTRAINT fk_attendance_enrollment FOREIGN KEY (enrollment_id) REFERENCES enrollment(id),
+    CONSTRAINT fk_attendance_course FOREIGN KEY (course_id) REFERENCES course(id),
+    CONSTRAINT fk_attendance_student FOREIGN KEY (student_id) REFERENCES student_profile(id),
+    CONSTRAINT fk_attendance_operator FOREIGN KEY (checked_in_by) REFERENCES user_account(id)
+);
+
+CREATE TABLE IF NOT EXISTS payment_record (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    enrollment_id BIGINT NOT NULL UNIQUE,
+    course_id BIGINT NOT NULL,
+    student_id BIGINT NOT NULL,
+    receivable_amount DECIMAL(10,2) NOT NULL,
+    paid_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    payment_method VARCHAR(30),
+    payment_status VARCHAR(20) NOT NULL DEFAULT 'UNPAID',
+    paid_at DATETIME,
+    handled_by BIGINT,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    CONSTRAINT fk_payment_enrollment FOREIGN KEY (enrollment_id) REFERENCES enrollment(id),
+    CONSTRAINT fk_payment_course FOREIGN KEY (course_id) REFERENCES course(id),
+    CONSTRAINT fk_payment_student FOREIGN KEY (student_id) REFERENCES student_profile(id),
+    CONSTRAINT fk_payment_operator FOREIGN KEY (handled_by) REFERENCES user_account(id)
+);
+
+CREATE TABLE IF NOT EXISTS course_evaluation (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    course_id BIGINT NOT NULL,
+    student_id BIGINT NOT NULL,
+    enrollment_id BIGINT,
+    rating INT NOT NULL,
+    comment_text TEXT,
+    submitted_by BIGINT,
+    submitted_at DATETIME NOT NULL,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    CONSTRAINT uk_evaluation_course_student UNIQUE (course_id, student_id),
+    CONSTRAINT fk_evaluation_course FOREIGN KEY (course_id) REFERENCES course(id),
+    CONSTRAINT fk_evaluation_student FOREIGN KEY (student_id) REFERENCES student_profile(id),
+    CONSTRAINT fk_evaluation_enrollment FOREIGN KEY (enrollment_id) REFERENCES enrollment(id),
+    CONSTRAINT fk_evaluation_submitter FOREIGN KEY (submitted_by) REFERENCES user_account(id)
+);
+
+CREATE TABLE IF NOT EXISTS operation_log (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    operator_user_id BIGINT NOT NULL,
+    business_type VARCHAR(50) NOT NULL,
+    business_id BIGINT NOT NULL,
+    action_type VARCHAR(50) NOT NULL,
+    action_result VARCHAR(20) NOT NULL DEFAULT 'SUCCESS',
+    action_detail TEXT,
+    created_at DATETIME NOT NULL,
+    CONSTRAINT fk_operation_user FOREIGN KEY (operator_user_id) REFERENCES user_account(id)
+);
+
+CREATE INDEX idx_user_account_username ON user_account (username);
+CREATE INDEX idx_application_no_status ON training_application (application_no, status);
+CREATE INDEX idx_course_no_status_start_time ON course (course_no, status, start_time);
+CREATE INDEX idx_notice_course_status ON course_notice (course_id, status);
+CREATE INDEX idx_enrollment_course_status ON enrollment (course_id, status);
+CREATE INDEX idx_enrollment_student_status ON enrollment (student_id, status);
+CREATE INDEX idx_attendance_course_status ON attendance_record (course_id, status);
+CREATE INDEX idx_payment_course_status ON payment_record (course_id, payment_status);
+CREATE INDEX idx_evaluation_course_rating ON course_evaluation (course_id, rating);
+
+INSERT INTO role (id, role_code, role_name, description, created_at, updated_at) VALUES
+(1, 'MANAGER', '经理', '审批申请、查看统计', NOW(), NOW()),
+(2, 'EXECUTOR', '执行人', '负责课程、通知、报名审核', NOW(), NOW()),
+(3, 'SITE_STAFF', '现场工作人员', '负责签到与收费', NOW(), NOW()),
+(4, 'STUDENT', '学员', '负责报名与评价', NOW(), NOW())
+ON DUPLICATE KEY UPDATE updated_at = NOW();
+
+INSERT INTO user_account (
+    id, username, password_hash, display_name, email, phone, account_type, account_status, last_login_at, created_at, updated_at
+) VALUES
+(1, 'manager01', '$2a$10$HfheNL1N6D8z0o7x1YgnQez6mBI8Xh.xcdIHuCeZyN.r.Vh6n/0eG', '培训经理', 'manager@hq.local', '13800000001', 'MANAGER', 'ACTIVE', NULL, NOW(), NOW()),
+(2, 'executor01', '$2a$10$HfheNL1N6D8z0o7x1YgnQez6mBI8Xh.xcdIHuCeZyN.r.Vh6n/0eG', '执行人-李工', 'executor@hq.local', '13800000002', 'EXECUTOR', 'ACTIVE', NULL, NOW(), NOW()),
+(3, 'staff01', '$2a$10$HfheNL1N6D8z0o7x1YgnQez6mBI8Xh.xcdIHuCeZyN.r.Vh6n/0eG', '现场工作人员', 'staff@hq.local', '13800000003', 'SITE_STAFF', 'ACTIVE', NULL, NOW(), NOW()),
+(4, 'student01', '$2a$10$HfheNL1N6D8z0o7x1YgnQez6mBI8Xh.xcdIHuCeZyN.r.Vh6n/0eG', '演示学员', 'student@hq.local', '13800000004', 'STUDENT', 'ACTIVE', NULL, NOW(), NOW())
+ON DUPLICATE KEY UPDATE updated_at = NOW();
+
+INSERT INTO user_role (id, user_id, role_id, created_at) VALUES
+(1, 1, 1, NOW()),
+(2, 2, 2, NOW()),
+(3, 3, 3, NOW()),
+(4, 4, 4, NOW())
+ON DUPLICATE KEY UPDATE created_at = VALUES(created_at);
+
+INSERT INTO customer_company (
+    id, company_name, company_type, contact_person, contact_phone, contact_email, remark, created_at, updated_at
+) VALUES
+(1, '未来软件科技有限公司', '软件企业', '王经理', '13600000001', 'wang@future-soft.com', '增量1演示客户', NOW(), NOW())
+ON DUPLICATE KEY UPDATE updated_at = NOW();

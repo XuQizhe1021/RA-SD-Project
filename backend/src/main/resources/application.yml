@@ -1,0 +1,11 @@
+server:
+  port: 18080
+
+spring:
+  application:
+    name: hq-training-backend
+
+app:
+  jwt:
+    secret: "hq-training-sprint-day8-demo-secret-key-please-change-later-2026"
+    expiration-hours: 8
