@@ -2,7 +2,9 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 import AppLayout from '../layout/AppLayout.vue'
 import { useAuthStore } from '../stores/auth'
+import CoursesView from '../views/CoursesView.vue'
 import HomeView from '../views/HomeView.vue'
+import LecturersView from '../views/LecturersView.vue'
 import LoginView from '../views/LoginView.vue'
 import PlaceholderView from '../views/PlaceholderView.vue'
 
@@ -38,13 +40,13 @@ const router = createRouter({
         {
           path: 'courses',
           name: 'courses',
-          component: PlaceholderView,
+          component: CoursesView,
           meta: { title: '课程管理' },
         },
         {
           path: 'lecturers',
           name: 'lecturers',
-          component: PlaceholderView,
+          component: LecturersView,
           meta: { title: '讲师管理' },
         },
         {

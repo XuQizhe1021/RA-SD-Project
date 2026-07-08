@@ -8,13 +8,13 @@ const authStore = useAuthStore()
 const stats = computed(() => [
   {
     title: '今日已完成',
-    value: '4 项',
-    description: '登录、鉴权、角色菜单、首页布局',
+    value: '6 项',
+    description: '登录、鉴权、角色菜单、首页布局、课程 CRUD、讲师 CRUD',
   },
   {
     title: '下一步优先级',
     value: 'P0',
-    description: '课程管理、讲师管理、通知与报名',
+    description: '通知发布、学员管理、报名审核',
   },
   {
     title: 'Sprint 范围',
@@ -29,7 +29,7 @@ const stats = computed(() => [
 ])
 
 const milestones = [
-  '7.8 完成课程管理与讲师管理',
+  '7.8 完成课程管理与讲师管理并交付测试',
   '7.9 打通通知发布、学员管理与报名审核',
   '7.10 完成签到与收费主流程',
   '7.11 完成评价、统计与联调修复',
@@ -41,14 +41,14 @@ const milestones = [
     <section class="hero page-card">
       <div>
         <div class="hero-tag">欢迎回来，{{ authStore.user?.displayName }}</div>
-        <h2>7.7 Sprint 启动日基础工程已就位</h2>
+        <h2>7.8 课程管理与讲师管理已进入可演示状态</h2>
         <p>
-          当前版本已经具备系统登录、角色菜单、首页布局和数据库脚本基础，可以作为后续
-          `M1-M9` 模块开发的统一底座。
+          当前版本已经具备系统登录、角色菜单、首页布局，以及课程管理和讲师管理的完整页面与接口，
+          可以直接交给 E 进行模块测试和截图归档。
         </p>
       </div>
       <el-alert
-        title="建议开发顺序：M0 -> M2 -> M3 -> M1 -> M5 -> M6 -> M7 -> M8 -> M9"
+        title="建议接续顺序：M5 通知发布 -> M4 学员管理 -> M6 报名审核 -> M7 签到收费"
         type="success"
         :closable="false"
         show-icon
