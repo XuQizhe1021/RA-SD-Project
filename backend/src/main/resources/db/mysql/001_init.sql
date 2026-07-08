@@ -1,4 +1,5 @@
-CREATE DATABASE IF NOT EXISTS hq_training DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+DROP DATABASE IF EXISTS hq_training;
+CREATE DATABASE hq_training DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 USE hq_training;
 
 CREATE TABLE IF NOT EXISTS role (
@@ -264,3 +265,38 @@ INSERT INTO customer_company (
 ) VALUES
 (1, '未来软件科技有限公司', '软件企业', '王经理', '13600000001', 'wang@future-soft.com', '增量1演示客户', NOW(), NOW())
 ON DUPLICATE KEY UPDATE updated_at = NOW();
+
+INSERT INTO lecturer_profile (
+    id, user_id, lecturer_no, full_name, title, specialty, phone, email, fee_standard, profile_text, status, created_at, updated_at
+) VALUES
+(1, NULL, 'LEC20260708001', '周教授', '高级架构师', '微服务架构, Java企业级开发', '13810000001', 'zhou.teacher@hq.local', 6800.00, '负责企业级架构与后端技术培训。', 'ACTIVE', NOW(), NOW()),
+(2, NULL, 'LEC20260708002', '陈老师', '敏捷教练', 'Scrum实践, 项目管理', '13810000002', 'chen.agile@hq.local', 5200.00, '擅长敏捷研发流程与项目复盘。', 'ACTIVE', NOW(), NOW())
+ON DUPLICATE KEY UPDATE
+    full_name = VALUES(full_name),
+    title = VALUES(title),
+    specialty = VALUES(specialty),
+    phone = VALUES(phone),
+    email = VALUES(email),
+    fee_standard = VALUES(fee_standard),
+    profile_text = VALUES(profile_text),
+    status = VALUES(status),
+    updated_at = NOW();
+
+INSERT INTO course (
+    id, course_no, application_id, course_name, lecturer_id, executor_user_id, start_time, end_time, location, quota, fee_amount, status, attachment_path, source_type, created_at, updated_at
+) VALUES
+(1, 'CRS20260708001', NULL, 'Spring Boot 企业级开发实战', 1, 2, '2026-07-09 09:00:00', '2026-07-09 17:30:00', '未来技术学院 A301', 60, 1999.00, 'DRAFT', NULL, 'SYSTEM', NOW(), NOW()),
+(2, 'CRS20260708002', NULL, 'Scrum 冲刺管理与实践', 2, 2, '2026-07-10 13:30:00', '2026-07-10 18:00:00', '未来技术学院 B201', 45, 1299.00, 'PUBLISHED', NULL, 'SYSTEM', NOW(), NOW())
+ON DUPLICATE KEY UPDATE
+    application_id = VALUES(application_id),
+    course_name = VALUES(course_name),
+    lecturer_id = VALUES(lecturer_id),
+    executor_user_id = VALUES(executor_user_id),
+    start_time = VALUES(start_time),
+    end_time = VALUES(end_time),
+    location = VALUES(location),
+    quota = VALUES(quota),
+    fee_amount = VALUES(fee_amount),
+    status = VALUES(status),
+    source_type = VALUES(source_type),
+    updated_at = NOW();

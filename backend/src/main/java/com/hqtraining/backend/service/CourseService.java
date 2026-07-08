@@ -4,67 +4,52 @@ import com.hqtraining.backend.common.PageResult;
 import com.hqtraining.backend.dto.CourseSaveRequest;
 import com.hqtraining.backend.model.CourseRecord;
 import com.hqtraining.backend.model.LecturerRecord;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.sql.PreparedStatement;
+import java.sql.Statement;
+import java.sql.Timestamp;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 public class CourseService {
 
-    private final CopyOnWriteArrayList<CourseRecord> courses = new CopyOnWriteArrayList<>();
-    private final AtomicLong idGenerator = new AtomicLong(2000);
+    private static final long DEFAULT_EXECUTOR_USER_ID = 2L;
+
+    private static final RowMapper<CourseRecord> COURSE_ROW_MAPPER = (rs, rowNum) -> new CourseRecord(
+            rs.getLong("id"),
+            rs.getString("course_no"),
+            rs.getObject("application_id", Long.class),
+            rs.getString("course_name"),
+            rs.getObject("lecturer_id", Long.class),
+            rs.getString("lecturer_name"),
+            rs.getLong("executor_user_id"),
+            rs.getString("executor_name"),
+            rs.getTimestamp("start_time").toLocalDateTime(),
+            rs.getTimestamp("end_time").toLocalDateTime(),
+            rs.getString("location"),
+            rs.getInt("quota"),
+            rs.getBigDecimal("fee_amount"),
+            rs.getString("status"),
+            rs.getString("source_type"),
+            rs.getTimestamp("created_at").toLocalDateTime(),
+            rs.getTimestamp("updated_at").toLocalDateTime()
+    );
+
+    private final JdbcTemplate jdbcTemplate;
     private final LecturerService lecturerService;
 
-    public CourseService(LecturerService lecturerService) {
+    public CourseService(JdbcTemplate jdbcTemplate, LecturerService lecturerService) {
+        this.jdbcTemplate = jdbcTemplate;
         this.lecturerService = lecturerService;
-        courses.add(new CourseRecord(
-                1L,
-                "CRS20260708001",
-                1L,
-                "Spring Boot 企业级开发实战",
-                1L,
-                "周教授",
-                2L,
-                "执行人-李工",
-                LocalDateTime.now().plusDays(1).withHour(9).withMinute(0).withSecond(0).withNano(0),
-                LocalDateTime.now().plusDays(1).withHour(17).withMinute(30).withSecond(0).withNano(0),
-                "未来技术学院 A301",
-                60,
-                new BigDecimal("1999.00"),
-                "DRAFT",
-                "SYSTEM",
-                LocalDateTime.now().minusDays(1),
-                LocalDateTime.now().minusHours(8)
-        ));
-        courses.add(new CourseRecord(
-                2L,
-                "CRS20260708002",
-                2L,
-                "Scrum 冲刺管理与实践",
-                2L,
-                "陈老师",
-                2L,
-                "执行人-李工",
-                LocalDateTime.now().plusDays(2).withHour(13).withMinute(30).withSecond(0).withNano(0),
-                LocalDateTime.now().plusDays(2).withHour(18).withMinute(0).withSecond(0).withNano(0),
-                "未来技术学院 B201",
-                45,
-                new BigDecimal("1299.00"),
-                "PUBLISHED",
-                "SYSTEM",
-                LocalDateTime.now().minusDays(1),
-                LocalDateTime.now().minusHours(3)
-        ));
-        idGenerator.set(2);
     }
 
     public PageResult<CourseRecord> getCourses(
@@ -74,50 +59,155 @@ public class CourseService {
             String status,
             Long lecturerId
     ) {
-        List<CourseRecord> filtered = courses.stream()
-                .filter(item -> matchesKeyword(item, keyword))
-                .filter(item -> matchesStatus(item, status))
-                .filter(item -> lecturerId == null || lecturerId.equals(item.lecturerId()))
-                .sorted(Comparator.comparing(CourseRecord::startTime))
-                .toList();
+        int safePageNum = Math.max(pageNum, 1);
+        int safePageSize = Math.max(pageSize, 1);
+        String likeKeyword = normalizeLikeKeyword(keyword);
 
-        return toPage(filtered, pageNum, pageSize);
+        Long total = jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(1)
+                FROM course c
+                LEFT JOIN lecturer_profile l ON c.lecturer_id = l.id
+                WHERE (? IS NULL OR c.status = ?)
+                  AND (? IS NULL OR c.lecturer_id = ?)
+                  AND (
+                    ? IS NULL
+                    OR c.course_no LIKE ?
+                    OR c.course_name LIKE ?
+                    OR c.location LIKE ?
+                    OR COALESCE(l.full_name, '') LIKE ?
+                  )
+                """,
+                Long.class,
+                emptyToNull(status), emptyToNull(status),
+                lecturerId, lecturerId,
+                likeKeyword, likeKeyword, likeKeyword, likeKeyword, likeKeyword
+        );
+
+        List<CourseRecord> list = jdbcTemplate.query(
+                """
+                SELECT
+                    c.id,
+                    c.course_no,
+                    c.application_id,
+                    c.course_name,
+                    c.lecturer_id,
+                    COALESCE(l.full_name, '') AS lecturer_name,
+                    c.executor_user_id,
+                    COALESCE(u.display_name, '') AS executor_name,
+                    c.start_time,
+                    c.end_time,
+                    c.location,
+                    c.quota,
+                    c.fee_amount,
+                    c.status,
+                    c.source_type,
+                    c.created_at,
+                    c.updated_at
+                FROM course c
+                LEFT JOIN lecturer_profile l ON c.lecturer_id = l.id
+                LEFT JOIN user_account u ON c.executor_user_id = u.id
+                WHERE (? IS NULL OR c.status = ?)
+                  AND (? IS NULL OR c.lecturer_id = ?)
+                  AND (
+                    ? IS NULL
+                    OR c.course_no LIKE ?
+                    OR c.course_name LIKE ?
+                    OR c.location LIKE ?
+                    OR COALESCE(l.full_name, '') LIKE ?
+                  )
+                ORDER BY c.start_time ASC, c.id ASC
+                LIMIT ? OFFSET ?
+                """,
+                COURSE_ROW_MAPPER,
+                emptyToNull(status), emptyToNull(status),
+                lecturerId, lecturerId,
+                likeKeyword, likeKeyword, likeKeyword, likeKeyword, likeKeyword,
+                safePageSize, (safePageNum - 1) * safePageSize
+        );
+
+        return new PageResult<>(list, safePageNum, safePageSize, total == null ? 0 : total);
     }
 
     public CourseRecord getCourseById(Long id) {
-        return courses.stream()
-                .filter(item -> item.id().equals(id))
-                .findFirst()
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "课程不存在"));
+        List<CourseRecord> courses = jdbcTemplate.query(
+                """
+                SELECT
+                    c.id,
+                    c.course_no,
+                    c.application_id,
+                    c.course_name,
+                    c.lecturer_id,
+                    COALESCE(l.full_name, '') AS lecturer_name,
+                    c.executor_user_id,
+                    COALESCE(u.display_name, '') AS executor_name,
+                    c.start_time,
+                    c.end_time,
+                    c.location,
+                    c.quota,
+                    c.fee_amount,
+                    c.status,
+                    c.source_type,
+                    c.created_at,
+                    c.updated_at
+                FROM course c
+                LEFT JOIN lecturer_profile l ON c.lecturer_id = l.id
+                LEFT JOIN user_account u ON c.executor_user_id = u.id
+                WHERE c.id = ?
+                """,
+                COURSE_ROW_MAPPER,
+                id
+        );
+        if (courses.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "课程不存在");
+        }
+        return courses.get(0);
     }
 
     public CourseRecord createCourse(CourseSaveRequest request) {
         validateCourseRequest(request);
-        long id = idGenerator.incrementAndGet();
-        LocalDateTime now = LocalDateTime.now();
         LecturerRecord lecturer = resolveLecturer(request.lecturerId());
+        LocalDateTime now = LocalDateTime.now();
+        KeyHolder keyHolder = new GeneratedKeyHolder();
 
-        CourseRecord record = new CourseRecord(
-                id,
-                generateCourseNo(id),
-                request.applicationId(),
-                request.courseName().trim(),
-                lecturer == null ? null : lecturer.id(),
-                lecturer == null ? "" : lecturer.fullName(),
-                2L,
-                "执行人-李工",
-                request.startTime(),
-                request.endTime(),
-                request.location().trim(),
-                request.quota(),
-                request.feeAmount() == null ? BigDecimal.ZERO : request.feeAmount(),
-                "DRAFT",
-                "SYSTEM",
-                now,
-                now
-        );
-        courses.add(record);
-        return record;
+        jdbcTemplate.update(connection -> {
+            PreparedStatement statement = connection.prepareStatement(
+                    """
+                    INSERT INTO course (
+                        course_no, application_id, course_name, lecturer_id, executor_user_id, start_time, end_time, location,
+                        quota, fee_amount, status, source_type, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', 'SYSTEM', ?, ?)
+                    """,
+                    Statement.RETURN_GENERATED_KEYS
+            );
+            statement.setString(1, generateCourseNo());
+            if (request.applicationId() == null) {
+                statement.setObject(2, null);
+            } else {
+                statement.setLong(2, request.applicationId());
+            }
+            statement.setString(3, request.courseName().trim());
+            if (lecturer == null) {
+                statement.setObject(4, null);
+            } else {
+                statement.setLong(4, lecturer.id());
+            }
+            statement.setLong(5, DEFAULT_EXECUTOR_USER_ID);
+            statement.setTimestamp(6, Timestamp.valueOf(request.startTime()));
+            statement.setTimestamp(7, Timestamp.valueOf(request.endTime()));
+            statement.setString(8, request.location().trim());
+            statement.setInt(9, request.quota());
+            statement.setBigDecimal(10, request.feeAmount() == null ? BigDecimal.ZERO : request.feeAmount());
+            statement.setTimestamp(11, Timestamp.valueOf(now));
+            statement.setTimestamp(12, Timestamp.valueOf(now));
+            return statement;
+        }, keyHolder);
+
+        Number key = keyHolder.getKey();
+        if (key == null) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "课程创建失败");
+        }
+        return getCourseById(key.longValue());
     }
 
     public CourseRecord updateCourse(Long id, CourseSaveRequest request) {
@@ -125,27 +215,27 @@ public class CourseService {
         CourseRecord existing = getCourseById(id);
         LecturerRecord lecturer = resolveLecturer(request.lecturerId());
 
-        CourseRecord updated = new CourseRecord(
-                existing.id(),
-                existing.courseNo(),
+        int updatedRows = jdbcTemplate.update(
+                """
+                UPDATE course
+                SET application_id = ?, course_name = ?, lecturer_id = ?, start_time = ?, end_time = ?, location = ?, quota = ?, fee_amount = ?, updated_at = ?
+                WHERE id = ?
+                """,
                 request.applicationId(),
                 request.courseName().trim(),
                 lecturer == null ? null : lecturer.id(),
-                lecturer == null ? "" : lecturer.fullName(),
-                existing.executorUserId(),
-                existing.executorName(),
-                request.startTime(),
-                request.endTime(),
+                Timestamp.valueOf(request.startTime()),
+                Timestamp.valueOf(request.endTime()),
                 request.location().trim(),
                 request.quota(),
                 request.feeAmount() == null ? BigDecimal.ZERO : request.feeAmount(),
-                existing.status(),
-                existing.sourceType(),
-                existing.createdAt(),
-                LocalDateTime.now()
+                Timestamp.valueOf(LocalDateTime.now()),
+                existing.id()
         );
-        replace(existing, updated);
-        return updated;
+        if (updatedRows == 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "课程不存在");
+        }
+        return getCourseById(id);
     }
 
     public CourseRecord publishCourse(Long id) {
@@ -153,27 +243,19 @@ public class CourseService {
         if (!"DRAFT".equals(existing.status())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "只有草稿状态的课程可以发布");
         }
-        CourseRecord updated = new CourseRecord(
-                existing.id(),
-                existing.courseNo(),
-                existing.applicationId(),
-                existing.courseName(),
-                existing.lecturerId(),
-                existing.lecturerName(),
-                existing.executorUserId(),
-                existing.executorName(),
-                existing.startTime(),
-                existing.endTime(),
-                existing.location(),
-                existing.quota(),
-                existing.feeAmount(),
-                "PUBLISHED",
-                existing.sourceType(),
-                existing.createdAt(),
-                LocalDateTime.now()
+        int updatedRows = jdbcTemplate.update(
+                """
+                UPDATE course
+                SET status = 'PUBLISHED', updated_at = ?
+                WHERE id = ?
+                """,
+                Timestamp.valueOf(LocalDateTime.now()),
+                id
         );
-        replace(existing, updated);
-        return updated;
+        if (updatedRows == 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "课程不存在");
+        }
+        return getCourseById(id);
     }
 
     private void validateCourseRequest(CourseSaveRequest request) {
@@ -193,42 +275,21 @@ public class CourseService {
         return lecturer;
     }
 
-    private boolean matchesKeyword(CourseRecord item, String keyword) {
-        if (keyword == null || keyword.isBlank()) {
-            return true;
+    private String generateCourseNo() {
+        Long maxId = jdbcTemplate.queryForObject("SELECT COALESCE(MAX(id), 0) FROM course", Long.class);
+        long nextId = (maxId == null ? 0 : maxId) + 1;
+        return "CRS20260708%03d".formatted(nextId);
+    }
+
+    private String normalizeLikeKeyword(String keyword) {
+        String normalized = emptyToNull(keyword);
+        return normalized == null ? null : "%" + normalized + "%";
+    }
+
+    private String emptyToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
         }
-        String normalized = keyword.toLowerCase(Locale.ROOT);
-        return item.courseName().toLowerCase(Locale.ROOT).contains(normalized)
-                || item.courseNo().toLowerCase(Locale.ROOT).contains(normalized)
-                || item.location().toLowerCase(Locale.ROOT).contains(normalized)
-                || item.lecturerName().toLowerCase(Locale.ROOT).contains(normalized);
-    }
-
-    private boolean matchesStatus(CourseRecord item, String status) {
-        return status == null || status.isBlank() || item.status().equalsIgnoreCase(status);
-    }
-
-    private PageResult<CourseRecord> toPage(List<CourseRecord> records, int pageNum, int pageSize) {
-        int safePageNum = Math.max(pageNum, 1);
-        int safePageSize = Math.max(pageSize, 1);
-        int fromIndex = (safePageNum - 1) * safePageSize;
-        if (fromIndex >= records.size()) {
-            return new PageResult<>(List.of(), safePageNum, safePageSize, records.size());
-        }
-
-        int toIndex = Math.min(fromIndex + safePageSize, records.size());
-        return new PageResult<>(new ArrayList<>(records.subList(fromIndex, toIndex)), safePageNum, safePageSize, records.size());
-    }
-
-    private void replace(CourseRecord existing, CourseRecord updated) {
-        int index = courses.indexOf(existing);
-        if (index < 0) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "课程不存在");
-        }
-        courses.set(index, updated);
-    }
-
-    private String generateCourseNo(long id) {
-        return "CRS20260708%03d".formatted(id);
+        return value.trim();
     }
 }
