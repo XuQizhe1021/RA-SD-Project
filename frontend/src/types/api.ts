@@ -46,3 +46,46 @@ export interface CourseRecord {
   createdAt: string
   updatedAt: string
 }
+
+export interface CourseOptionRecord {
+  id: number
+  courseNo: string
+  courseName: string
+  location: string
+  startTime: string
+  quota: number
+  feeAmount: number
+  status: string
+}
+
+export interface StudentOptionRecord {
+  id: number
+  studentNo: string
+  fullName: string
+  companyName: string
+  phone: string
+  email: string
+}
+
+export interface EnrollmentRecord {
+  id: number
+  enrollmentNo: string
+  courseId: number
+  courseNo: string
+  courseName: string
+  courseLocation: string
+  courseStartTime: string
+  courseFeeAmount: number
+  studentId: number
+  studentNo: string
+  studentName: string
+  companyName: string
+  paymentType: string
+  status: string
+  confirmedBy: number | null
+  confirmedByName: string
+  confirmedAt: string | null
+  rejectReason: string | null
+  createdAt: string
+  updatedAt: string
+}

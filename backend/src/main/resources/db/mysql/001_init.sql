@@ -266,6 +266,21 @@ INSERT INTO customer_company (
 (1, '未来软件科技有限公司', '软件企业', '王经理', '13600000001', 'wang@future-soft.com', '增量1演示客户', NOW(), NOW())
 ON DUPLICATE KEY UPDATE updated_at = NOW();
 
+INSERT INTO student_profile (
+    id, user_id, student_no, full_name, gender, company_id, job_title, education_level, tech_level, phone, email, created_at, updated_at
+) VALUES
+(1, 4, 'STU20260709001', '演示学员', '男', 1, '软件工程师', '本科', '中级', '13800000004', 'student@hq.local', NOW(), NOW())
+ON DUPLICATE KEY UPDATE
+    full_name = VALUES(full_name),
+    gender = VALUES(gender),
+    company_id = VALUES(company_id),
+    job_title = VALUES(job_title),
+    education_level = VALUES(education_level),
+    tech_level = VALUES(tech_level),
+    phone = VALUES(phone),
+    email = VALUES(email),
+    updated_at = NOW();
+
 INSERT INTO lecturer_profile (
     id, user_id, lecturer_no, full_name, title, specialty, phone, email, fee_standard, profile_text, status, created_at, updated_at
 ) VALUES
@@ -299,4 +314,17 @@ ON DUPLICATE KEY UPDATE
     fee_amount = VALUES(fee_amount),
     status = VALUES(status),
     source_type = VALUES(source_type),
+    updated_at = NOW();
+
+INSERT INTO course_notice (
+    id, course_id, title, content, registration_start_at, registration_end_at, status, published_at, external_publish_flag, created_by, created_at, updated_at
+) VALUES
+(1, 2, 'Scrum 冲刺管理与实践开班通知', '课程已开放报名，请相关学员尽快提交报名。', '2026-07-08 08:00:00', '2026-07-10 12:00:00', 'PUBLISHED', NOW(), 0, 2, NOW(), NOW())
+ON DUPLICATE KEY UPDATE
+    title = VALUES(title),
+    content = VALUES(content),
+    registration_start_at = VALUES(registration_start_at),
+    registration_end_at = VALUES(registration_end_at),
+    status = VALUES(status),
+    published_at = VALUES(published_at),
     updated_at = NOW();

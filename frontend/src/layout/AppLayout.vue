@@ -70,7 +70,7 @@ function handleLogout() {
         <div class="brand-icon">HQ</div>
         <div>
           <div class="brand-title">HQ技术培训管理系统</div>
-          <div class="brand-subtitle">Sprint Day8 基础版本</div>
+          <div class="brand-subtitle">Sprint Day10 报名模块版本</div>
         </div>
       </div>
       <el-menu :default-active="activeMenu" class="menu-panel" router>
@@ -95,10 +95,10 @@ function handleLogout() {
       <el-header class="topbar">
         <div>
           <div class="topbar-title">{{ currentTitle }}</div>
-          <div class="topbar-meta">7.8 已进入课程管理与讲师管理模块开发阶段</div>
+          <div class="topbar-meta">7.9 已完成报名管理主流程开发，正在为签到收费联调准备数据</div>
         </div>
         <div class="topbar-actions">
-          <el-tag type="primary" effect="light">当前版本可演示课程 CRUD 与讲师 CRUD</el-tag>
+          <el-tag type="primary" effect="light">当前版本可演示课程、讲师、报名审核主流程</el-tag>
           <el-dropdown>
             <span class="user-badge">
               <el-avatar :size="34">{{ authStore.user?.displayName?.slice(0, 1) }}</el-avatar>

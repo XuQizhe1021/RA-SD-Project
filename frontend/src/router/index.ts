@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import AppLayout from '../layout/AppLayout.vue'
 import { useAuthStore } from '../stores/auth'
 import CoursesView from '../views/CoursesView.vue'
+import EnrollmentsView from '../views/EnrollmentsView.vue'
 import HomeView from '../views/HomeView.vue'
 import LecturersView from '../views/LecturersView.vue'
 import LoginView from '../views/LoginView.vue'
@@ -64,7 +65,7 @@ const router = createRouter({
         {
           path: 'enrollments',
           name: 'enrollments',
-          component: PlaceholderView,
+          component: EnrollmentsView,
           meta: { title: '报名管理' },
         },
         {
