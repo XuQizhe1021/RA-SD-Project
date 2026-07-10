@@ -4,6 +4,7 @@ import com.hqtraining.backend.common.PageResult;
 import com.hqtraining.backend.dto.EnrollmentConfirmRequest;
 import com.hqtraining.backend.dto.EnrollmentCreateRequest;
 import com.hqtraining.backend.model.CourseOptionRecord;
+import com.hqtraining.backend.model.CurrentUser;
 import com.hqtraining.backend.model.EnrollmentRecord;
 import com.hqtraining.backend.model.StudentOptionRecord;
 import org.springframework.http.HttpStatus;
@@ -23,8 +24,6 @@ import java.util.List;
 
 @Service
 public class EnrollmentService {
-
-    private static final long DEFAULT_EXECUTOR_USER_ID = 2L;
 
     private static final RowMapper<EnrollmentRecord> ENROLLMENT_ROW_MAPPER = (rs, rowNum) -> new EnrollmentRecord(
             rs.getLong("id"),
@@ -81,11 +80,16 @@ public class EnrollmentService {
             String keyword,
             String status,
             Long courseId,
-            Long studentId
+            Long studentId,
+            CurrentUser currentUser
     ) {
+        ensureEnrollmentReader(currentUser);
         int safePageNum = Math.max(pageNum, 1);
         int safePageSize = Math.max(pageSize, 1);
         String likeKeyword = normalizeLikeKeyword(keyword);
+        Long effectiveStudentId = currentUser.hasRole("STUDENT")
+                ? getStudentProfileIdByUserId(currentUser.id())
+                : studentId;
 
         Long total = jdbcTemplate.queryForObject(
                 """
@@ -110,7 +114,7 @@ public class EnrollmentService {
                 Long.class,
                 emptyToNull(status), emptyToNull(status),
                 courseId, courseId,
-                studentId, studentId,
+                effectiveStudentId, effectiveStudentId,
                 likeKeyword, likeKeyword, likeKeyword, likeKeyword, likeKeyword, likeKeyword, likeKeyword
         );
 
@@ -160,7 +164,7 @@ public class EnrollmentService {
                 ENROLLMENT_ROW_MAPPER,
                 emptyToNull(status), emptyToNull(status),
                 courseId, courseId,
-                studentId, studentId,
+                effectiveStudentId, effectiveStudentId,
                 likeKeyword, likeKeyword, likeKeyword, likeKeyword, likeKeyword, likeKeyword, likeKeyword,
                 safePageSize, (safePageNum - 1) * safePageSize
         );
@@ -168,7 +172,8 @@ public class EnrollmentService {
         return new PageResult<>(list, safePageNum, safePageSize, total == null ? 0 : total);
     }
 
-    public EnrollmentRecord getEnrollmentById(Long id) {
+    public EnrollmentRecord getEnrollmentById(Long id, CurrentUser currentUser) {
+        ensureEnrollmentReader(currentUser);
         List<EnrollmentRecord> records = jdbcTemplate.query(
                 """
                 SELECT
@@ -205,14 +210,30 @@ public class EnrollmentService {
         if (records.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "报名记录不存在");
         }
-        return records.get(0);
+        EnrollmentRecord record = records.get(0);
+        if (currentUser.hasRole("STUDENT")) {
+            Long studentProfileId = getStudentProfileIdByUserId(currentUser.id());
+            if (!studentProfileId.equals(record.studentId())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "学员仅可查看自己的报名记录");
+            }
+        }
+        return record;
     }
 
-    public EnrollmentRecord createEnrollment(EnrollmentCreateRequest request) {
+    public EnrollmentRecord createEnrollment(EnrollmentCreateRequest request, CurrentUser currentUser) {
+        ensureEnrollmentCreator(currentUser);
         ensureDemoStudentsReady();
         CourseOptionRecord course = getPublishedCourseOption(request.courseId());
-        StudentOptionRecord student = getStudentOption(request.studentId());
-        validateCreateRequest(request, course, student);
+        Long effectiveStudentId = request.studentId();
+        if (currentUser.hasRole("STUDENT")) {
+            effectiveStudentId = getStudentProfileIdByUserId(currentUser.id());
+            if (!effectiveStudentId.equals(request.studentId())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "学员仅可为自己提交报名");
+            }
+        }
+        final Long finalStudentId = effectiveStudentId;
+        StudentOptionRecord student = getStudentOption(effectiveStudentId);
+        validateCreateRequest(request.courseId(), effectiveStudentId, request.paymentType(), course, student);
         LocalDateTime now = LocalDateTime.now();
         KeyHolder keyHolder = new GeneratedKeyHolder();
 
@@ -227,7 +248,7 @@ public class EnrollmentService {
             );
             statement.setString(1, generateEnrollmentNo());
             statement.setLong(2, request.courseId());
-            statement.setLong(3, request.studentId());
+            statement.setLong(3, finalStudentId);
             statement.setString(4, request.paymentType().trim().toUpperCase());
             statement.setTimestamp(5, Timestamp.valueOf(now));
             statement.setTimestamp(6, Timestamp.valueOf(now));
@@ -239,12 +260,13 @@ public class EnrollmentService {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "报名创建失败");
         }
 
-        writeOperationLog(DEFAULT_EXECUTOR_USER_ID, "ENROLLMENT", key.longValue(), "CREATE", "新增报名记录");
-        return getEnrollmentById(key.longValue());
+        writeOperationLog(currentUser.id(), "ENROLLMENT", key.longValue(), "CREATE", "新增报名记录");
+        return getEnrollmentById(key.longValue(), currentUser);
     }
 
-    public EnrollmentRecord confirmEnrollment(Long id, EnrollmentConfirmRequest request) {
-        EnrollmentRecord existing = getEnrollmentById(id);
+    public EnrollmentRecord confirmEnrollment(Long id, EnrollmentConfirmRequest request, CurrentUser currentUser) {
+        ensureExecutor(currentUser);
+        EnrollmentRecord existing = getEnrollmentById(id, currentUser);
         if (!"PENDING".equals(existing.status())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "只有待审核报名可以执行审核");
         }
@@ -264,7 +286,7 @@ public class EnrollmentService {
                 WHERE id = ?
                 """,
                 nextStatus,
-                DEFAULT_EXECUTOR_USER_ID,
+                currentUser.id(),
                 Timestamp.valueOf(now),
                 rejectReason,
                 Timestamp.valueOf(now),
@@ -276,20 +298,21 @@ public class EnrollmentService {
 
         if (approved) {
             initializeAttendanceRecord(existing, now);
-            initializePaymentRecord(existing, now);
+            initializePaymentRecord(existing, now, currentUser.id());
         }
 
         writeOperationLog(
-                DEFAULT_EXECUTOR_USER_ID,
+                currentUser.id(),
                 "ENROLLMENT",
                 id,
                 approved ? "APPROVE" : "REJECT",
                 approved ? "报名审核通过" : "报名审核驳回：" + rejectReason
         );
-        return getEnrollmentById(id);
+        return getEnrollmentById(id, currentUser);
     }
 
-    public List<CourseOptionRecord> getCourseOptions() {
+    public List<CourseOptionRecord> getCourseOptions(CurrentUser currentUser) {
+        ensureEnrollmentReader(currentUser);
         return jdbcTemplate.query(
                 """
                 SELECT id, course_no, course_name, location, start_time, quota, fee_amount, status
@@ -301,8 +324,13 @@ public class EnrollmentService {
         );
     }
 
-    public List<StudentOptionRecord> getStudentOptions() {
+    public List<StudentOptionRecord> getStudentOptions(CurrentUser currentUser) {
+        ensureEnrollmentCreator(currentUser);
         ensureDemoStudentsReady();
+        if (currentUser.hasRole("STUDENT")) {
+            StudentOptionRecord student = getStudentOption(getStudentProfileIdByUserId(currentUser.id()));
+            return student == null ? List.of() : List.of(student);
+        }
         return jdbcTemplate.query(
                 """
                 SELECT
@@ -321,11 +349,13 @@ public class EnrollmentService {
     }
 
     private void validateCreateRequest(
-            EnrollmentCreateRequest request,
+            Long courseId,
+            Long studentId,
+            String paymentTypeValue,
             CourseOptionRecord course,
             StudentOptionRecord student
     ) {
-        String paymentType = request.paymentType().trim().toUpperCase();
+        String paymentType = paymentTypeValue.trim().toUpperCase();
         if (!"PERSONAL".equals(paymentType) && !"CORPORATE".equals(paymentType)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "付费类型仅支持 PERSONAL 或 CORPORATE");
         }
@@ -344,8 +374,8 @@ public class EnrollmentService {
                   AND student_id = ?
                 """,
                 Integer.class,
-                request.courseId(),
-                request.studentId()
+                courseId,
+                studentId
         );
         if (existingCount != null && existingCount > 0) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "同一学员不能重复报名同一课程");
@@ -359,7 +389,7 @@ public class EnrollmentService {
                   AND status IN ('PENDING', 'CONFIRMED')
                 """,
                 Integer.class,
-                request.courseId()
+                courseId
         );
         if (occupiedCount != null && occupiedCount >= course.quota()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "课程名额已满，无法继续报名");
@@ -423,7 +453,7 @@ public class EnrollmentService {
         );
     }
 
-    private void initializePaymentRecord(EnrollmentRecord existing, LocalDateTime now) {
+    private void initializePaymentRecord(EnrollmentRecord existing, LocalDateTime now, Long operatorUserId) {
         Integer count = jdbcTemplate.queryForObject(
                 "SELECT COUNT(1) FROM payment_record WHERE enrollment_id = ?",
                 Integer.class,
@@ -454,10 +484,43 @@ public class EnrollmentService {
                 paymentMethod,
                 paymentStatus,
                 corporate ? Timestamp.valueOf(now) : null,
-                corporate ? DEFAULT_EXECUTOR_USER_ID : null,
+                corporate ? operatorUserId : null,
                 Timestamp.valueOf(now),
                 Timestamp.valueOf(now)
         );
+    }
+
+    private void ensureEnrollmentReader(CurrentUser currentUser) {
+        if (currentUser.hasRole("EXECUTOR") || currentUser.hasRole("STUDENT")) {
+            return;
+        }
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "当前角色无权访问报名信息");
+    }
+
+    private void ensureEnrollmentCreator(CurrentUser currentUser) {
+        if (currentUser.hasRole("EXECUTOR") || currentUser.hasRole("STUDENT")) {
+            return;
+        }
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "当前角色无权提交报名");
+    }
+
+    private void ensureExecutor(CurrentUser currentUser) {
+        if (currentUser.hasRole("EXECUTOR")) {
+            return;
+        }
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "仅执行人可审核报名");
+    }
+
+    private Long getStudentProfileIdByUserId(Long userId) {
+        List<Long> studentIds = jdbcTemplate.queryForList(
+                "SELECT id FROM student_profile WHERE user_id = ?",
+                Long.class,
+                userId
+        );
+        if (studentIds.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "当前账号尚未绑定学员档案");
+        }
+        return studentIds.get(0);
     }
 
     private void ensureDemoStudentsReady() {

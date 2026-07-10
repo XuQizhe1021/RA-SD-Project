@@ -21,6 +21,13 @@ const authStore = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 
+const roleNameMap: Record<string, string> = {
+  MANAGER: '经理',
+  EXECUTOR: '执行人',
+  SITE_STAFF: '现场工作人员',
+  STUDENT: '学员',
+}
+
 const iconMap = {
   HomeFilled,
   EditPen,
@@ -52,6 +59,19 @@ const titleMap: Record<string, string> = {
 }
 
 const currentTitle = computed(() => titleMap[route.path] ?? 'HQ技术培训管理系统')
+const currentRoleName = computed(() => roleNameMap[authStore.primaryRole] ?? authStore.primaryRole)
+const topbarMeta = computed(() => {
+  if (authStore.hasRole('MANAGER')) {
+    return '经理视角：聚焦申请审批、课程计划与经营统计'
+  }
+  if (authStore.hasRole('EXECUTOR')) {
+    return '执行人视角：维护课程、讲师、学员、通知与报名主流程'
+  }
+  if (authStore.hasRole('SITE_STAFF')) {
+    return '现场视角：负责签到、收费和培训现场收尾工作'
+  }
+  return '学员视角：查看通知、提交报名、完成缴费并参与课程评价'
+})
 
 function menuIcon(icon?: string) {
   return icon ? iconMap[icon as keyof typeof iconMap] : HomeFilled
@@ -70,7 +90,7 @@ function handleLogout() {
         <div class="brand-icon">HQ</div>
         <div>
           <div class="brand-title">HQ技术培训管理系统</div>
-          <div class="brand-subtitle">Sprint Day10 报名模块版本</div>
+          <div class="brand-subtitle">Sprint Day11 签到收费版本</div>
         </div>
       </div>
       <el-menu :default-active="activeMenu" class="menu-panel" router>
@@ -87,7 +107,7 @@ function handleLogout() {
       </el-menu>
       <div class="sidebar-footer">
         <div class="footer-label">当前角色</div>
-        <div class="footer-value">{{ authStore.user?.roles.join(' / ') }}</div>
+        <div class="footer-value">{{ currentRoleName }}</div>
       </div>
     </el-aside>
 
@@ -95,10 +115,10 @@ function handleLogout() {
       <el-header class="topbar">
         <div>
           <div class="topbar-title">{{ currentTitle }}</div>
-          <div class="topbar-meta">7.9 已完成报名管理主流程开发，正在为签到收费联调准备数据</div>
+          <div class="topbar-meta">{{ topbarMeta }}</div>
         </div>
         <div class="topbar-actions">
-          <el-tag type="primary" effect="light">当前版本可演示课程、讲师、报名审核主流程</el-tag>
+          <el-tag type="primary" effect="light">{{ currentRoleName }}权限已按职责边界收敛</el-tag>
           <el-dropdown>
             <span class="user-badge">
               <el-avatar :size="34">{{ authStore.user?.displayName?.slice(0, 1) }}</el-avatar>

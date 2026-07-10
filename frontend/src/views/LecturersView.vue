@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { EditPen, Plus, Search, SwitchButton } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 
 import {
   createLecturer,
@@ -10,8 +10,10 @@ import {
   updateLecturer,
   type LecturerPayload,
 } from '../api/training'
+import { useAuthStore } from '../stores/auth'
 import type { LecturerRecord } from '../types/api'
 
+const authStore = useAuthStore()
 const loading = ref(false)
 const dialogVisible = ref(false)
 const submitting = ref(false)
@@ -45,6 +47,14 @@ const rules: FormRules<LecturerPayload> = {
   title: [{ max: 100, message: '职称长度不能超过100', trigger: 'blur' }],
   specialty: [{ max: 200, message: '专长方向长度不能超过200', trigger: 'blur' }],
 }
+const isManagerView = computed(() => authStore.hasRole('MANAGER'))
+const pageTag = computed(() => (isManagerView.value ? '经理查看视角' : '执行人维护视角'))
+const pageTitle = computed(() => (isManagerView.value ? '讲师资源总览' : '讲师管理'))
+const pageDescription = computed(() =>
+  isManagerView.value
+    ? '经理可查看讲师档案、专长与费用标准，用于判断课程资源配置是否匹配培训申请需求。'
+    : '执行人维护讲师档案、费用标准和状态，为课程创建与通知发布提供讲师基础数据。',
+)
 
 async function loadData() {
   loading.value = true
@@ -148,9 +158,9 @@ onMounted(() => {
   <div class="module-page">
     <section class="page-card summary-card">
       <div>
-        <div class="module-tag">Day9 站会后优先完成</div>
-        <h2>讲师管理</h2>
-        <p>维护讲师档案、专长方向和费用标准，为课程创建时的讲师关联提供基础数据。</p>
+        <div class="module-tag">{{ pageTag }}</div>
+        <h2>{{ pageTitle }}</h2>
+        <p>{{ pageDescription }}</p>
       </div>
       <div class="summary-metrics">
         <div class="metric-item">
@@ -182,7 +192,7 @@ onMounted(() => {
         </el-select>
         <el-button type="primary" @click="handleSearch">查询</el-button>
       </div>
-      <el-button type="primary" :icon="Plus" @click="openCreateDialog">新增讲师</el-button>
+      <el-button v-if="!isManagerView" type="primary" :icon="Plus" @click="openCreateDialog">新增讲师</el-button>
     </section>
 
     <section class="page-card table-card">
@@ -211,9 +221,9 @@ onMounted(() => {
         <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <div class="action-row">
-              <el-button link type="primary" :icon="EditPen" @click="openEditDialog(row)">编辑</el-button>
+              <el-button v-if="!isManagerView" link type="primary" :icon="EditPen" @click="openEditDialog(row)">编辑</el-button>
               <el-button
-                v-if="row.status === 'ACTIVE'"
+                v-if="!isManagerView && row.status === 'ACTIVE'"
                 link
                 type="danger"
                 :icon="SwitchButton"
@@ -221,6 +231,7 @@ onMounted(() => {
               >
                 停用
               </el-button>
+              <span v-if="isManagerView" class="handled-text">经理仅查看讲师资源情况</span>
             </div>
           </template>
         </el-table-column>
@@ -380,6 +391,12 @@ p {
 .action-row {
   display: flex;
   gap: 8px;
+  align-items: center;
+}
+
+.handled-text {
+  color: #64748b;
+  font-size: 13px;
 }
 
 .pagination-row {

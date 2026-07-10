@@ -1,12 +1,14 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 import AppLayout from '../layout/AppLayout.vue'
+import AttendanceView from '../views/AttendanceView.vue'
 import { useAuthStore } from '../stores/auth'
 import CoursesView from '../views/CoursesView.vue'
 import EnrollmentsView from '../views/EnrollmentsView.vue'
 import HomeView from '../views/HomeView.vue'
 import LecturersView from '../views/LecturersView.vue'
 import LoginView from '../views/LoginView.vue'
+import PaymentsView from '../views/PaymentsView.vue'
 import PlaceholderView from '../views/PlaceholderView.vue'
 
 const router = createRouter({
@@ -71,13 +73,13 @@ const router = createRouter({
         {
           path: 'attendance',
           name: 'attendance',
-          component: PlaceholderView,
+          component: AttendanceView,
           meta: { title: '签到管理' },
         },
         {
           path: 'payments',
           name: 'payments',
-          component: PlaceholderView,
+          component: PaymentsView,
           meta: { title: '收费管理' },
         },
         {
@@ -118,6 +120,12 @@ router.beforeEach(async (to) => {
       authStore.logout()
       return { path: '/login', query: { redirect: to.fullPath } }
     }
+  }
+
+  const accessiblePaths = new Set(authStore.accessiblePaths)
+  if (to.path !== '/dashboard' && !accessiblePaths.has(to.path)) {
+    const fallbackPath = authStore.menus[0]?.path ?? '/dashboard'
+    return { path: fallbackPath }
   }
 
   return true

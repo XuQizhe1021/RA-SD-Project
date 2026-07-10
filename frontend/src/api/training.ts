@@ -1,11 +1,13 @@
 import http from './http'
 import type {
   ApiResponse,
+  AttendanceRecordView,
   CourseOptionRecord,
   CourseRecord,
   EnrollmentRecord,
   LecturerRecord,
   PageResult,
+  PaymentRecordView,
   StudentOptionRecord,
 } from '../types/api'
 
@@ -65,6 +67,31 @@ export interface EnrollmentConfirmPayload {
   rejectReason?: string
 }
 
+export interface AttendanceQuery {
+  pageNum: number
+  pageSize: number
+  keyword?: string
+  status?: string
+  courseId?: number | undefined
+}
+
+export interface AttendanceCheckInPayload {
+  remark?: string
+}
+
+export interface PaymentQuery {
+  pageNum: number
+  pageSize: number
+  keyword?: string
+  paymentStatus?: string
+  courseId?: number | undefined
+}
+
+export interface PaymentPayPayload {
+  paidAmount: number
+  paymentMethod: string
+}
+
 export async function fetchLecturerPage(params: LecturerQuery) {
   return (await http.get('/lecturers', { params })) as ApiResponse<PageResult<LecturerRecord>>
 }
@@ -119,4 +146,20 @@ export async function createEnrollment(payload: EnrollmentCreatePayload) {
 
 export async function confirmEnrollment(id: number, payload: EnrollmentConfirmPayload) {
   return (await http.post(`/enrollments/${id}/confirm`, payload)) as ApiResponse<EnrollmentRecord>
+}
+
+export async function fetchAttendancePage(params: AttendanceQuery) {
+  return (await http.get('/attendance-records', { params })) as ApiResponse<PageResult<AttendanceRecordView>>
+}
+
+export async function checkInAttendance(id: number, payload: AttendanceCheckInPayload) {
+  return (await http.post(`/attendance-records/${id}/check-in`, payload)) as ApiResponse<AttendanceRecordView>
+}
+
+export async function fetchPaymentPage(params: PaymentQuery) {
+  return (await http.get('/payments', { params })) as ApiResponse<PageResult<PaymentRecordView>>
+}
+
+export async function payPayment(id: number, payload: PaymentPayPayload) {
+  return (await http.post(`/payments/${id}/pay`, payload)) as ApiResponse<PaymentRecordView>
 }

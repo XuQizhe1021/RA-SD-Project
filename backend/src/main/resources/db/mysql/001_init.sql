@@ -247,17 +247,26 @@ ON DUPLICATE KEY UPDATE updated_at = NOW();
 INSERT INTO user_account (
     id, username, password_hash, display_name, email, phone, account_type, account_status, last_login_at, created_at, updated_at
 ) VALUES
-(1, 'manager01', '$2a$10$HfheNL1N6D8z0o7x1YgnQez6mBI8Xh.xcdIHuCeZyN.r.Vh6n/0eG', '培训经理', 'manager@hq.local', '13800000001', 'MANAGER', 'ACTIVE', NULL, NOW(), NOW()),
-(2, 'executor01', '$2a$10$HfheNL1N6D8z0o7x1YgnQez6mBI8Xh.xcdIHuCeZyN.r.Vh6n/0eG', '执行人-李工', 'executor@hq.local', '13800000002', 'EXECUTOR', 'ACTIVE', NULL, NOW(), NOW()),
-(3, 'staff01', '$2a$10$HfheNL1N6D8z0o7x1YgnQez6mBI8Xh.xcdIHuCeZyN.r.Vh6n/0eG', '现场工作人员', 'staff@hq.local', '13800000003', 'SITE_STAFF', 'ACTIVE', NULL, NOW(), NOW()),
-(4, 'student01', '$2a$10$HfheNL1N6D8z0o7x1YgnQez6mBI8Xh.xcdIHuCeZyN.r.Vh6n/0eG', '演示学员', 'student@hq.local', '13800000004', 'STUDENT', 'ACTIVE', NULL, NOW(), NOW())
-ON DUPLICATE KEY UPDATE updated_at = NOW();
+(1, 'manager01', '$2a$10$r7ThwTGHfF7oaTcQ9lT7UO0deo9JdyWFM8kwVu9xWS.DtQrDoahH.', '培训经理', 'manager@hq.local', '13800000001', 'MANAGER', 'ACTIVE', NULL, NOW(), NOW()),
+(2, 'executor01', '$2a$10$r7ThwTGHfF7oaTcQ9lT7UO0deo9JdyWFM8kwVu9xWS.DtQrDoahH.', '执行人-李工', 'executor@hq.local', '13800000002', 'EXECUTOR', 'ACTIVE', NULL, NOW(), NOW()),
+(3, 'staff01', '$2a$10$r7ThwTGHfF7oaTcQ9lT7UO0deo9JdyWFM8kwVu9xWS.DtQrDoahH.', '现场工作人员', 'staff@hq.local', '13800000003', 'SITE_STAFF', 'ACTIVE', NULL, NOW(), NOW()),
+(4, 'student01', '$2a$10$r7ThwTGHfF7oaTcQ9lT7UO0deo9JdyWFM8kwVu9xWS.DtQrDoahH.', '演示学员', 'student@hq.local', '13800000004', 'STUDENT', 'ACTIVE', NULL, NOW(), NOW()),
+(5, 'student02', '$2a$10$r7ThwTGHfF7oaTcQ9lT7UO0deo9JdyWFM8kwVu9xWS.DtQrDoahH.', '演示学员-王敏', 'student02@hq.local', '13800000005', 'STUDENT', 'ACTIVE', NULL, NOW(), NOW())
+ON DUPLICATE KEY UPDATE
+    password_hash = VALUES(password_hash),
+    display_name = VALUES(display_name),
+    email = VALUES(email),
+    phone = VALUES(phone),
+    account_type = VALUES(account_type),
+    account_status = VALUES(account_status),
+    updated_at = NOW();
 
 INSERT INTO user_role (id, user_id, role_id, created_at) VALUES
 (1, 1, 1, NOW()),
 (2, 2, 2, NOW()),
 (3, 3, 3, NOW()),
-(4, 4, 4, NOW())
+(4, 4, 4, NOW()),
+(5, 5, 4, NOW())
 ON DUPLICATE KEY UPDATE created_at = VALUES(created_at);
 
 INSERT INTO customer_company (
@@ -269,7 +278,8 @@ ON DUPLICATE KEY UPDATE updated_at = NOW();
 INSERT INTO student_profile (
     id, user_id, student_no, full_name, gender, company_id, job_title, education_level, tech_level, phone, email, created_at, updated_at
 ) VALUES
-(1, 4, 'STU20260709001', '演示学员', '男', 1, '软件工程师', '本科', '中级', '13800000004', 'student@hq.local', NOW(), NOW())
+(1, 4, 'STU20260709001', '演示学员', '男', 1, '软件工程师', '本科', '中级', '13800000004', 'student@hq.local', NOW(), NOW()),
+(2, 5, 'STU20260709002', '演示学员-王敏', '女', 1, '测试工程师', '本科', '中级', '13800000005', 'student02@hq.local', NOW(), NOW())
 ON DUPLICATE KEY UPDATE
     full_name = VALUES(full_name),
     gender = VALUES(gender),

@@ -2,15 +2,14 @@ package com.hqtraining.backend.model;
 
 import java.util.List;
 
-public record UserAccount(
+public record CurrentUser(
         Long id,
         String username,
-        String passwordHash,
         String displayName,
-        String email,
-        String phone,
         String accountType,
-        String accountStatus,
         List<String> roles
 ) {
+    public boolean hasRole(String roleCode) {
+        return roles != null && roles.contains(roleCode);
+    }
 }

@@ -12,12 +12,14 @@ import {
   type EnrollmentConfirmPayload,
   type EnrollmentCreatePayload,
 } from '../api/training'
+import { useAuthStore } from '../stores/auth'
 import type {
   CourseOptionRecord,
   EnrollmentRecord,
   StudentOptionRecord,
 } from '../types/api'
 
+const authStore = useAuthStore()
 const loading = ref(false)
 const createDialogVisible = ref(false)
 const confirmDialogVisible = ref(false)
@@ -65,6 +67,16 @@ const confirmRules: FormRules<EnrollmentConfirmPayload> = {
 
 const confirmedCount = computed(() => pageData.list.filter((item) => item.status === 'CONFIRMED').length)
 const pendingCount = computed(() => pageData.list.filter((item) => item.status === 'PENDING').length)
+const rejectedCount = computed(() => pageData.list.filter((item) => item.status === 'REJECTED').length)
+const isStudentView = computed(() => authStore.hasRole('STUDENT'))
+const currentStudentOption = computed(() => studentOptions.value[0] ?? null)
+const pageTag = computed(() => (isStudentView.value ? '学员报名视角' : '执行人审核视角'))
+const pageTitle = computed(() => (isStudentView.value ? '我的培训报名' : '学员报名管理'))
+const pageDescription = computed(() =>
+  isStudentView.value
+    ? '学员在此查看可报名课程、提交自己的报名申请，并跟踪审核结果与后续缴费安排。'
+    : '执行人负责汇总报名申请、审核通过或驳回，并为后续签到与收费生成准确名单。',
+)
 
 async function loadOptions() {
   const [courseResponse, studentResponse] = await Promise.all([
@@ -73,6 +85,9 @@ async function loadOptions() {
   ])
   courseOptions.value = courseResponse.data
   studentOptions.value = studentResponse.data
+  if (isStudentView.value && currentStudentOption.value) {
+    createForm.studentId = currentStudentOption.value.id
+  }
 }
 
 async function loadData() {
@@ -100,7 +115,7 @@ function handleSearch() {
 
 function resetCreateForm() {
   createForm.courseId = 0
-  createForm.studentId = 0
+  createForm.studentId = isStudentView.value ? (currentStudentOption.value?.id ?? 0) : 0
   createForm.paymentType = 'PERSONAL'
 }
 
@@ -214,9 +229,9 @@ onMounted(async () => {
   <div class="module-page">
     <section class="page-card summary-card">
       <div>
-        <div class="module-tag">Day10 报名主流程</div>
-        <h2>学员报名管理</h2>
-        <p>支持报名列表查询、模拟学员提交报名、执行人审核以及状态流转，为后续签到收费模块提供前置数据。</p>
+        <div class="module-tag">{{ pageTag }}</div>
+        <h2>{{ pageTitle }}</h2>
+        <p>{{ pageDescription }}</p>
       </div>
       <div class="summary-metrics">
         <div class="metric-item">
@@ -228,8 +243,8 @@ onMounted(async () => {
           <strong>{{ pendingCount }}</strong>
         </div>
         <div class="metric-item">
-          <span>已确认</span>
-          <strong>{{ confirmedCount }}</strong>
+          <span>{{ isStudentView ? '已驳回' : '已确认' }}</span>
+          <strong>{{ isStudentView ? rejectedCount : confirmedCount }}</strong>
         </div>
       </div>
     </section>
@@ -259,7 +274,7 @@ onMounted(async () => {
             :value="course.id"
           />
         </el-select>
-        <el-select v-model="query.studentId" clearable placeholder="学员筛选">
+        <el-select v-if="!isStudentView" v-model="query.studentId" clearable placeholder="学员筛选">
           <el-option
             v-for="student in studentOptions"
             :key="student.id"
@@ -269,7 +284,9 @@ onMounted(async () => {
         </el-select>
         <el-button type="primary" @click="handleSearch">查询</el-button>
       </div>
-      <el-button type="primary" :icon="Plus" @click="openCreateDialog">新增报名</el-button>
+      <el-button type="primary" :icon="Plus" @click="openCreateDialog">
+        {{ isStudentView ? '我要报名' : '新增报名' }}
+      </el-button>
     </section>
 
     <section class="page-card table-card">
@@ -310,7 +327,7 @@ onMounted(async () => {
           <template #default="{ row }">
             <div class="action-row">
               <el-button
-                v-if="row.status === 'PENDING'"
+                v-if="!isStudentView && row.status === 'PENDING'"
                 link
                 type="success"
                 :icon="Check"
@@ -319,7 +336,7 @@ onMounted(async () => {
                 通过
               </el-button>
               <el-button
-                v-if="row.status === 'PENDING'"
+                v-if="!isStudentView && row.status === 'PENDING'"
                 link
                 type="danger"
                 :icon="Close"
@@ -327,7 +344,10 @@ onMounted(async () => {
               >
                 驳回
               </el-button>
-              <span v-if="row.status !== 'PENDING'" class="handled-text">已完成审核</span>
+              <span v-if="isStudentView" class="handled-text">
+                {{ row.status === 'PENDING' ? '等待执行人审核' : row.status === 'CONFIRMED' ? '报名已通过' : '报名已驳回' }}
+              </span>
+              <span v-else-if="row.status !== 'PENDING'" class="handled-text">已完成审核</span>
             </div>
           </template>
         </el-table-column>
@@ -364,7 +384,7 @@ onMounted(async () => {
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="学员信息" prop="studentId">
+        <el-form-item v-if="!isStudentView" label="学员信息" prop="studentId">
           <el-select v-model="createForm.studentId" placeholder="请选择学员" style="width: 100%">
             <el-option
               v-for="student in studentOptions"
@@ -373,6 +393,11 @@ onMounted(async () => {
               :value="student.id"
             />
           </el-select>
+        </el-form-item>
+        <el-form-item v-else label="报名学员">
+          <div class="readonly-block">
+            {{ currentStudentOption ? `${currentStudentOption.fullName} / ${currentStudentOption.companyName || '未绑定公司'} / ${currentStudentOption.studentNo}` : '正在加载当前学员信息' }}
+          </div>
         </el-form-item>
         <el-form-item label="付费类型" prop="paymentType">
           <el-radio-group v-model="createForm.paymentType">
@@ -532,6 +557,14 @@ p {
   background: #f8fafc;
   color: #334155;
   line-height: 1.8;
+}
+
+.readonly-block {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #334155;
 }
 
 @media (max-width: 1080px) {

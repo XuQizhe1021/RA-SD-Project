@@ -11,8 +11,10 @@ import {
   updateCourse,
   type CoursePayload,
 } from '../api/training'
+import { useAuthStore } from '../stores/auth'
 import type { CourseRecord, LecturerRecord } from '../types/api'
 
+const authStore = useAuthStore()
 const loading = ref(false)
 const dialogVisible = ref(false)
 const submitting = ref(false)
@@ -52,6 +54,14 @@ const rules: FormRules<CoursePayload> = {
 }
 
 const publishedCount = computed(() => pageData.list.filter((item) => item.status === 'PUBLISHED').length)
+const isManagerView = computed(() => authStore.hasRole('MANAGER'))
+const pageTag = computed(() => (isManagerView.value ? '经理查看视角' : '执行人维护视角'))
+const pageTitle = computed(() => (isManagerView.value ? '课程执行总览' : '课程管理'))
+const pageDescription = computed(() =>
+  isManagerView.value
+    ? '经理可查看课程计划、讲师安排与发布进度，用于掌握培训项目执行情况，但不直接修改课程数据。'
+    : '执行人负责新增、编辑和发布课程，为通知发布、报名审核、签到收费等后续流程提供基础数据。',
+)
 
 async function loadLecturerOptions() {
   const response = await fetchLecturerOptions()
@@ -160,9 +170,9 @@ onMounted(async () => {
   <div class="module-page">
     <section class="page-card summary-card">
       <div>
-        <div class="module-tag">Day8 当日交付模块</div>
-        <h2>课程管理</h2>
-        <p>支持课程新增、编辑、讲师关联和课程发布，为后续通知发布和学员报名打基础。</p>
+        <div class="module-tag">{{ pageTag }}</div>
+        <h2>{{ pageTitle }}</h2>
+        <p>{{ pageDescription }}</p>
       </div>
       <div class="summary-metrics">
         <div class="metric-item">
@@ -202,7 +212,7 @@ onMounted(async () => {
         </el-select>
         <el-button type="primary" @click="handleSearch">查询</el-button>
       </div>
-      <el-button type="primary" :icon="Plus" @click="openCreateDialog">新增课程</el-button>
+      <el-button v-if="!isManagerView" type="primary" :icon="Plus" @click="openCreateDialog">新增课程</el-button>
     </section>
 
     <section class="page-card table-card">
@@ -237,9 +247,9 @@ onMounted(async () => {
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <div class="action-row">
-              <el-button link type="primary" :icon="EditPen" @click="openEditDialog(row)">编辑</el-button>
+              <el-button v-if="!isManagerView" link type="primary" :icon="EditPen" @click="openEditDialog(row)">编辑</el-button>
               <el-button
-                v-if="row.status === 'DRAFT'"
+                v-if="!isManagerView && row.status === 'DRAFT'"
                 link
                 type="success"
                 :icon="Check"
@@ -247,6 +257,7 @@ onMounted(async () => {
               >
                 发布
               </el-button>
+              <span v-if="isManagerView" class="handled-text">经理仅查看课程执行情况</span>
             </div>
           </template>
         </el-table-column>
@@ -435,6 +446,12 @@ p {
 .action-row {
   display: flex;
   gap: 8px;
+  align-items: center;
+}
+
+.handled-text {
+  color: #64748b;
+  font-size: 13px;
 }
 
 .pagination-row {

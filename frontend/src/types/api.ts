@@ -89,3 +89,47 @@ export interface EnrollmentRecord {
   createdAt: string
   updatedAt: string
 }
+
+export interface AttendanceRecordView {
+  id: number
+  enrollmentId: number
+  enrollmentNo: string
+  courseId: number
+  courseNo: string
+  courseName: string
+  courseStartTime: string
+  studentId: number
+  studentNo: string
+  studentName: string
+  companyName: string
+  attendanceStatus: string
+  checkedInAt: string | null
+  checkedInBy: number | null
+  checkedInByName: string
+  remark: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PaymentRecordView {
+  id: number
+  enrollmentId: number
+  enrollmentNo: string
+  courseId: number
+  courseNo: string
+  courseName: string
+  studentId: number
+  studentNo: string
+  studentName: string
+  companyName: string
+  paymentType: string
+  receivableAmount: number
+  paidAmount: number
+  paymentMethod: string | null
+  paymentStatus: string
+  paidAt: string | null
+  handledBy: number | null
+  handledByName: string
+  createdAt: string
+  updatedAt: string
+}

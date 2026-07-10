@@ -5,50 +5,145 @@ import { useAuthStore } from '../stores/auth'
 
 const authStore = useAuthStore()
 
-const stats = computed(() => [
-  {
-    title: '今日已完成',
-    value: '6 项',
-    description: '登录、鉴权、角色菜单、首页布局、课程 CRUD、讲师 CRUD',
-  },
-  {
-    title: '下一步优先级',
-    value: 'P0',
-    description: '通知发布、学员管理、报名审核',
-  },
-  {
-    title: 'Sprint 范围',
-    value: '增量1',
-    description: '只做 PC Web 最小闭环，不混入增量2',
-  },
-  {
-    title: '当前登录角色',
-    value: authStore.user?.roles[0] ?? '未识别',
-    description: '菜单按角色动态返回，后续可扩接口级权限',
-  },
-])
+const primaryRole = computed(() => authStore.primaryRole)
 
-const milestones = [
-  '7.8 完成课程管理与讲师管理并交付测试',
-  '7.9 打通通知发布、学员管理与报名审核',
-  '7.10 完成签到与收费主流程',
-  '7.11 完成评价、统计与联调修复',
-]
+const roleNameMap: Record<string, string> = {
+  MANAGER: '经理',
+  EXECUTOR: '执行人',
+  SITE_STAFF: '现场工作人员',
+  STUDENT: '学员',
+}
+
+const heroContent = computed(() => {
+  if (primaryRole.value === 'MANAGER') {
+    return {
+      tag: '经理工作台',
+      title: '关注培训申请、课程计划和经营统计',
+      description: '当前视角聚焦申请审批、课程执行概览与培训经营结果，适合快速判断培训项目是否按计划推进。',
+      alert: '经理可查看课程与讲师资源情况，并在培训申请、统计报表模块跟踪整体经营表现。',
+    }
+  }
+  if (primaryRole.value === 'EXECUTOR') {
+    return {
+      tag: '执行人工作台',
+      title: '负责课程落地、讲师协调、通知发布与报名审核',
+      description: '当前视角覆盖增量1主闭环中的运营执行环节，重点关注课程、讲师、学员、通知和报名流转。',
+      alert: '执行人是培训主流程的核心协调角色，需持续跟进报名审核、开课提醒与现场交接。',
+    }
+  }
+  if (primaryRole.value === 'SITE_STAFF') {
+    return {
+      tag: '现场工作台',
+      title: '聚焦签到、收费与培训现场支持',
+      description: '当前视角只保留现场执行相关模块，确保签到名单、收费记录与培训结束后的评价回收链路清晰。',
+      alert: '现场工作人员负责培训当日到场核验、资料发放、收费登记与评价回收。',
+    }
+  }
+  return {
+    tag: '学员工作台',
+    title: '查看通知、提交报名、完成缴费与课程评价',
+    description: '当前视角只展示学员可参与的功能入口，帮助学员沿着通知浏览、报名、缴费、评价的顺序完成培训流程。',
+    alert: '学员仅可查看和操作自己的报名及缴费记录，不再接触后台审核类操作。',
+  }
+})
+
+const stats = computed(() => {
+  const baseStats = [
+    {
+      title: '当前登录角色',
+      value: roleNameMap[primaryRole.value] ?? '未识别',
+      description: '系统按角色返回菜单并限制可访问路由',
+    },
+    {
+      title: '当前开放模块',
+      value: `${authStore.menus.length} 个`,
+      description: authStore.menus.map((item) => item.name).join(' / '),
+    },
+  ]
+
+  if (primaryRole.value === 'MANAGER') {
+    return baseStats.concat([
+      {
+        title: '角色关注点',
+        value: '申请审批',
+        description: '确认培训需求、预算与课程计划是否合理',
+      },
+      {
+        title: '经营关注点',
+        value: '统计报表',
+        description: '关注课程开班、收入汇总与执行情况',
+      },
+    ])
+  }
+
+  if (primaryRole.value === 'EXECUTOR') {
+    return baseStats.concat([
+      {
+        title: '主流程职责',
+        value: '课程到报名',
+        description: '负责课程维护、通知发布、报名审核与开课提醒',
+      },
+      {
+        title: '当前重点',
+        value: '数据流转',
+        description: '为签到、收费、评价等后续模块提供准确数据',
+      },
+    ])
+  }
+
+  if (primaryRole.value === 'SITE_STAFF') {
+    return baseStats.concat([
+      {
+        title: '现场动作',
+        value: '签到 + 收费',
+        description: '核验报名名单、记录签到、完成收费登记',
+      },
+      {
+        title: '培训收尾',
+        value: '评价回收',
+        description: '培训结束后整理课程反馈与满意度信息',
+      },
+    ])
+  }
+
+  return baseStats.concat([
+    {
+      title: '报名入口',
+      value: '通知 / 报名',
+      description: '先查看通知，再选择课程并提交报名',
+    },
+    {
+      title: '后续动作',
+      value: '缴费 / 评价',
+      description: '报名确认后完成缴费，培训结束后提交评价',
+    },
+  ])
+})
+
+const milestones = computed(() => {
+  if (primaryRole.value === 'MANAGER') {
+    return ['查看培训申请处理进度', '查看课程与讲师准备情况', '在统计报表中跟踪经营结果']
+  }
+  if (primaryRole.value === 'EXECUTOR') {
+    return ['维护课程与讲师基础数据', '发布通知并处理报名审核', '为现场签到与收费准备完整名单']
+  }
+  if (primaryRole.value === 'SITE_STAFF') {
+    return ['查看已确认报名名单', '完成培训当天签到与收费', '回收评价并整理现场反馈']
+  }
+  return ['浏览已发布的培训通知', '提交并跟踪自己的报名记录', '完成缴费并在培训结束后提交评价']
+})
 </script>
 
 <template>
   <div class="dashboard">
     <section class="hero page-card">
       <div>
-        <div class="hero-tag">欢迎回来，{{ authStore.user?.displayName }}</div>
-        <h2>7.8 课程管理与讲师管理已进入可演示状态</h2>
-        <p>
-          当前版本已经具备系统登录、角色菜单、首页布局，以及课程管理和讲师管理的完整页面与接口，
-          可以直接交给 E 进行模块测试和截图归档。
-        </p>
+        <div class="hero-tag">{{ heroContent.tag }} · {{ authStore.user?.displayName }}</div>
+        <h2>{{ heroContent.title }}</h2>
+        <p>{{ heroContent.description }}</p>
       </div>
       <el-alert
-        title="建议接续顺序：M5 通知发布 -> M4 学员管理 -> M6 报名审核 -> M7 签到收费"
+        :title="heroContent.alert"
         type="success"
         :closable="false"
         show-icon
@@ -65,7 +160,7 @@ const milestones = [
 
     <section class="bottom-grid">
       <article class="page-card plan-card">
-        <div class="section-title">后续冲刺计划</div>
+        <div class="section-title">当前角色职责</div>
         <el-timeline>
           <el-timeline-item v-for="milestone in milestones" :key="milestone" type="primary">
             {{ milestone }}
@@ -74,12 +169,13 @@ const milestones = [
       </article>
 
       <article class="page-card account-card">
-        <div class="section-title">演示账号提醒</div>
+        <div class="section-title">账号与权限说明</div>
         <el-descriptions :column="1" border>
           <el-descriptions-item label="经理">manager01 / 123456</el-descriptions-item>
           <el-descriptions-item label="执行人">executor01 / 123456</el-descriptions-item>
           <el-descriptions-item label="现场工作人员">staff01 / 123456</el-descriptions-item>
           <el-descriptions-item label="学员">student01 / 123456</el-descriptions-item>
+          <el-descriptions-item label="说明">各角色仅保留自身职责范围内的菜单与页面操作</el-descriptions-item>
         </el-descriptions>
       </article>
     </section>

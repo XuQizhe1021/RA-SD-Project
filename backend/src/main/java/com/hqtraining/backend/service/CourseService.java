@@ -2,6 +2,7 @@ package com.hqtraining.backend.service;
 
 import com.hqtraining.backend.common.PageResult;
 import com.hqtraining.backend.dto.CourseSaveRequest;
+import com.hqtraining.backend.model.CurrentUser;
 import com.hqtraining.backend.model.CourseRecord;
 import com.hqtraining.backend.model.LecturerRecord;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -21,8 +22,6 @@ import java.util.List;
 
 @Service
 public class CourseService {
-
-    private static final long DEFAULT_EXECUTOR_USER_ID = 2L;
 
     private static final RowMapper<CourseRecord> COURSE_ROW_MAPPER = (rs, rowNum) -> new CourseRecord(
             rs.getLong("id"),
@@ -57,8 +56,10 @@ public class CourseService {
             int pageSize,
             String keyword,
             String status,
-            Long lecturerId
+            Long lecturerId,
+            CurrentUser currentUser
     ) {
+        ensureReadable(currentUser);
         int safePageNum = Math.max(pageNum, 1);
         int safePageSize = Math.max(pageSize, 1);
         String likeKeyword = normalizeLikeKeyword(keyword);
@@ -129,7 +130,8 @@ public class CourseService {
         return new PageResult<>(list, safePageNum, safePageSize, total == null ? 0 : total);
     }
 
-    public CourseRecord getCourseById(Long id) {
+    public CourseRecord getCourseById(Long id, CurrentUser currentUser) {
+        ensureReadable(currentUser);
         List<CourseRecord> courses = jdbcTemplate.query(
                 """
                 SELECT
@@ -164,7 +166,8 @@ public class CourseService {
         return courses.get(0);
     }
 
-    public CourseRecord createCourse(CourseSaveRequest request) {
+    public CourseRecord createCourse(CourseSaveRequest request, CurrentUser currentUser) {
+        ensureExecutor(currentUser);
         validateCourseRequest(request);
         LecturerRecord lecturer = resolveLecturer(request.lecturerId());
         LocalDateTime now = LocalDateTime.now();
@@ -192,7 +195,7 @@ public class CourseService {
             } else {
                 statement.setLong(4, lecturer.id());
             }
-            statement.setLong(5, DEFAULT_EXECUTOR_USER_ID);
+            statement.setLong(5, currentUser.id());
             statement.setTimestamp(6, Timestamp.valueOf(request.startTime()));
             statement.setTimestamp(7, Timestamp.valueOf(request.endTime()));
             statement.setString(8, request.location().trim());
@@ -207,12 +210,13 @@ public class CourseService {
         if (key == null) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "课程创建失败");
         }
-        return getCourseById(key.longValue());
+        return getCourseById(key.longValue(), currentUser);
     }
 
-    public CourseRecord updateCourse(Long id, CourseSaveRequest request) {
+    public CourseRecord updateCourse(Long id, CourseSaveRequest request, CurrentUser currentUser) {
+        ensureExecutor(currentUser);
         validateCourseRequest(request);
-        CourseRecord existing = getCourseById(id);
+        CourseRecord existing = getCourseById(id, currentUser);
         LecturerRecord lecturer = resolveLecturer(request.lecturerId());
 
         int updatedRows = jdbcTemplate.update(
@@ -235,11 +239,12 @@ public class CourseService {
         if (updatedRows == 0) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "课程不存在");
         }
-        return getCourseById(id);
+        return getCourseById(id, currentUser);
     }
 
-    public CourseRecord publishCourse(Long id) {
-        CourseRecord existing = getCourseById(id);
+    public CourseRecord publishCourse(Long id, CurrentUser currentUser) {
+        ensureExecutor(currentUser);
+        CourseRecord existing = getCourseById(id, currentUser);
         if (!"DRAFT".equals(existing.status())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "只有草稿状态的课程可以发布");
         }
@@ -255,7 +260,21 @@ public class CourseService {
         if (updatedRows == 0) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "课程不存在");
         }
-        return getCourseById(id);
+        return getCourseById(id, currentUser);
+    }
+
+    private void ensureReadable(CurrentUser currentUser) {
+        if (currentUser.hasRole("MANAGER") || currentUser.hasRole("EXECUTOR")) {
+            return;
+        }
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "当前角色无权查看课程信息");
+    }
+
+    private void ensureExecutor(CurrentUser currentUser) {
+        if (currentUser.hasRole("EXECUTOR")) {
+            return;
+        }
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "仅执行人可维护课程信息");
     }
 
     private void validateCourseRequest(CourseSaveRequest request) {

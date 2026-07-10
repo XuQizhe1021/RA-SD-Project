@@ -44,6 +44,8 @@ export const useAuthStore = defineStore('auth', {
   }),
   getters: {
     isLoggedIn: (state) => Boolean(state.token),
+    primaryRole: (state) => state.user?.roles[0] ?? '',
+    accessiblePaths: (state) => state.menus.map((item) => item.path),
   },
   actions: {
     restoreSession() {
@@ -87,6 +89,9 @@ export const useAuthStore = defineStore('auth', {
       window.localStorage.removeItem(TOKEN_KEY)
       window.localStorage.removeItem(USER_KEY)
       window.localStorage.removeItem(MENUS_KEY)
+    },
+    hasRole(role: string) {
+      return this.user?.roles.includes(role) ?? false
     },
   },
 })

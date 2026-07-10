@@ -2,6 +2,7 @@ package com.hqtraining.backend.service;
 
 import com.hqtraining.backend.common.PageResult;
 import com.hqtraining.backend.dto.LecturerSaveRequest;
+import com.hqtraining.backend.model.CurrentUser;
 import com.hqtraining.backend.model.LecturerRecord;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -42,7 +43,14 @@ public class LecturerService {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public PageResult<LecturerRecord> getLecturers(int pageNum, int pageSize, String keyword, String status) {
+    public PageResult<LecturerRecord> getLecturers(
+            int pageNum,
+            int pageSize,
+            String keyword,
+            String status,
+            CurrentUser currentUser
+    ) {
+        ensureReadable(currentUser);
         int safePageNum = Math.max(pageNum, 1);
         int safePageSize = Math.max(pageSize, 1);
         String likeKeyword = normalizeLikeKeyword(keyword);
@@ -89,7 +97,8 @@ public class LecturerService {
         return new PageResult<>(list, safePageNum, safePageSize, total == null ? 0 : total);
     }
 
-    public List<LecturerRecord> getActiveLecturers() {
+    public List<LecturerRecord> getActiveLecturers(CurrentUser currentUser) {
+        ensureReadable(currentUser);
         return jdbcTemplate.query(
                 """
                 SELECT id, lecturer_no, full_name, title, specialty, phone, email, fee_standard, profile_text, status, created_at, updated_at
@@ -117,7 +126,13 @@ public class LecturerService {
         return lecturers.get(0);
     }
 
-    public LecturerRecord createLecturer(LecturerSaveRequest request) {
+    public LecturerRecord getLecturerById(Long id, CurrentUser currentUser) {
+        ensureReadable(currentUser);
+        return getLecturerById(id);
+    }
+
+    public LecturerRecord createLecturer(LecturerSaveRequest request, CurrentUser currentUser) {
+        ensureExecutor(currentUser);
         LocalDateTime now = LocalDateTime.now();
         KeyHolder keyHolder = new GeneratedKeyHolder();
 
@@ -150,7 +165,8 @@ public class LecturerService {
         return getLecturerById(key.longValue());
     }
 
-    public LecturerRecord updateLecturer(Long id, LecturerSaveRequest request) {
+    public LecturerRecord updateLecturer(Long id, LecturerSaveRequest request, CurrentUser currentUser) {
+        ensureExecutor(currentUser);
         LecturerRecord existing = getLecturerById(id);
         int updatedRows = jdbcTemplate.update(
                 """
@@ -174,7 +190,8 @@ public class LecturerService {
         return getLecturerById(id);
     }
 
-    public LecturerRecord disableLecturer(Long id) {
+    public LecturerRecord disableLecturer(Long id, CurrentUser currentUser) {
+        ensureExecutor(currentUser);
         int updatedRows = jdbcTemplate.update(
                 """
                 UPDATE lecturer_profile
@@ -188,6 +205,20 @@ public class LecturerService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "讲师不存在");
         }
         return getLecturerById(id);
+    }
+
+    private void ensureReadable(CurrentUser currentUser) {
+        if (currentUser.hasRole("MANAGER") || currentUser.hasRole("EXECUTOR")) {
+            return;
+        }
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "当前角色无权查看讲师信息");
+    }
+
+    private void ensureExecutor(CurrentUser currentUser) {
+        if (currentUser.hasRole("EXECUTOR")) {
+            return;
+        }
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "仅执行人可维护讲师档案");
     }
 
     private String generateLecturerNo() {
