@@ -9,8 +9,11 @@ import {
   fetchEnrollmentCourseOptions,
   type AttendanceCheckInPayload,
 } from '../api/training'
+import { getErrorMessage } from '../api/http'
+import { useAuthStore } from '../stores/auth'
 import type { AttendanceRecordView, CourseOptionRecord } from '../types/api'
 
+const authStore = useAuthStore()
 const loading = ref(false)
 const submitting = ref(false)
 const dialogVisible = ref(false)
@@ -40,6 +43,27 @@ const rules: FormRules<AttendanceCheckInPayload> = {
 }
 
 const checkedInCount = computed(() => pageData.list.filter((item) => item.attendanceStatus === 'CHECKED_IN').length)
+const uncheckedCount = computed(() => pageData.list.filter((item) => item.attendanceStatus === 'NOT_CHECKED_IN').length)
+const pageTag = computed(() => (authStore.hasRole('SITE_STAFF') ? '现场工作人员签到视角' : '签到查看视角'))
+const pageTitle = computed(() => (authStore.hasRole('SITE_STAFF') ? '签到管理' : '签到记录'))
+const pageDescription = computed(() =>
+  authStore.hasRole('SITE_STAFF')
+    ? '培训当天由现场工作人员根据已确认报名名单执行签到，签到结果、操作人和备注直接写入数据库。'
+    : '当前角色仅可查看签到说明，不具备培训现场签到权限。',
+)
+
+const roleBoundaries = [
+  '经理：不进入签到模块，通过统计报表查看培训到场情况。',
+  '执行人：不执行签到，负责在培训前完成课程、通知、报名审核等准备工作。',
+  '现场工作人员：查看已确认报名名单、执行签到、记录现场备注。',
+  '学员：不进入签到管理页面，只在现场由工作人员核验后签到。',
+]
+
+const businessRules = [
+  '签到记录来源于报名审核通过后自动生成的 attendance_record 数据。',
+  '仅状态为 CONFIRMED 的报名允许签到，未在名单内的学员无法签到。',
+  '同一报名记录只允许签到一次，重复签到会被后端拒绝。',
+]
 
 async function loadCourseOptions() {
   const response = await fetchEnrollmentCourseOptions()
@@ -88,6 +112,8 @@ async function submitCheckIn() {
     ElMessage.success('签到已完成')
     dialogVisible.value = false
     await loadData()
+  } catch (error) {
+    ElMessage.error(getErrorMessage(error, '签到失败，请稍后重试'))
   } finally {
     submitting.value = false
   }
@@ -120,9 +146,9 @@ onMounted(async () => {
   <div class="module-page">
     <section class="page-card summary-card">
       <div>
-        <div class="module-tag">Day11 上午交付</div>
-        <h2>签到管理</h2>
-        <p>基于已确认报名生成的签到记录，支持按课程检索并执行现场签到，签到结果直接写入数据库。</p>
+        <div class="module-tag">{{ pageTag }}</div>
+        <h2>{{ pageTitle }}</h2>
+        <p>{{ pageDescription }}</p>
       </div>
       <div class="summary-metrics">
         <div class="metric-item">
@@ -133,6 +159,27 @@ onMounted(async () => {
           <span>已签到</span>
           <strong>{{ checkedInCount }}</strong>
         </div>
+        <div class="metric-item">
+          <span>待签到</span>
+          <strong>{{ uncheckedCount }}</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="page-card meta-card">
+      <div class="meta-grid">
+        <article class="meta-panel">
+          <div class="meta-title">角色边界</div>
+          <ul class="meta-list">
+            <li v-for="item in roleBoundaries" :key="item">{{ item }}</li>
+          </ul>
+        </article>
+        <article class="meta-panel">
+          <div class="meta-title">业务规则</div>
+          <ul class="meta-list">
+            <li v-for="item in businessRules" :key="item">{{ item }}</li>
+          </ul>
+        </article>
       </div>
     </section>
 
@@ -320,6 +367,36 @@ p {
   gap: 16px;
 }
 
+.meta-card {
+  padding: 22px 24px;
+}
+
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.meta-panel {
+  padding: 18px;
+  border-radius: 18px;
+  background: #f8fafc;
+}
+
+.meta-title {
+  margin-bottom: 12px;
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.meta-list {
+  margin: 0;
+  padding-left: 18px;
+  color: #475569;
+  line-height: 1.8;
+}
+
 .filter-row {
   display: flex;
   gap: 12px;
@@ -360,6 +437,10 @@ p {
 
   .summary-metrics {
     min-width: 0;
+  }
+
+  .meta-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>
