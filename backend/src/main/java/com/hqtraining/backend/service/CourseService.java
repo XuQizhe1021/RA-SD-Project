@@ -169,6 +169,7 @@ public class CourseService {
     public CourseRecord createCourse(CourseSaveRequest request, CurrentUser currentUser) {
         ensureExecutor(currentUser);
         validateCourseRequest(request);
+        Long applicationId = resolveApplicationId(request.applicationId());
         LecturerRecord lecturer = resolveLecturer(request.lecturerId());
         LocalDateTime now = LocalDateTime.now();
         KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -184,10 +185,10 @@ public class CourseService {
                     Statement.RETURN_GENERATED_KEYS
             );
             statement.setString(1, generateCourseNo());
-            if (request.applicationId() == null) {
+            if (applicationId == null) {
                 statement.setObject(2, null);
             } else {
-                statement.setLong(2, request.applicationId());
+                statement.setLong(2, applicationId);
             }
             statement.setString(3, request.courseName().trim());
             if (lecturer == null) {
@@ -217,6 +218,7 @@ public class CourseService {
         ensureExecutor(currentUser);
         validateCourseRequest(request);
         CourseRecord existing = getCourseById(id, currentUser);
+        Long applicationId = resolveApplicationId(request.applicationId());
         LecturerRecord lecturer = resolveLecturer(request.lecturerId());
 
         int updatedRows = jdbcTemplate.update(
@@ -225,7 +227,7 @@ public class CourseService {
                 SET application_id = ?, course_name = ?, lecturer_id = ?, start_time = ?, end_time = ?, location = ?, quota = ?, fee_amount = ?, updated_at = ?
                 WHERE id = ?
                 """,
-                request.applicationId(),
+                applicationId,
                 request.courseName().trim(),
                 lecturer == null ? null : lecturer.id(),
                 Timestamp.valueOf(request.startTime()),
@@ -292,6 +294,21 @@ public class CourseService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "只能选择启用中的讲师");
         }
         return lecturer;
+    }
+
+    private Long resolveApplicationId(Long applicationId) {
+        if (applicationId == null) {
+            return null;
+        }
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(1) FROM training_application WHERE id = ?",
+                Integer.class,
+                applicationId
+        );
+        if (count == null || count == 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "关联的培训申请不存在");
+        }
+        return applicationId;
     }
 
     private String generateCourseNo() {

@@ -12,6 +12,7 @@ import {
   type EnrollmentConfirmPayload,
   type EnrollmentCreatePayload,
 } from '../api/training'
+import { getErrorMessage } from '../api/http'
 import { useAuthStore } from '../stores/auth'
 import type {
   CourseOptionRecord,
@@ -149,6 +150,8 @@ async function submitCreateForm() {
     ElMessage.success('报名记录已创建')
     createDialogVisible.value = false
     await loadData()
+  } catch (error) {
+    ElMessage.error(getErrorMessage(error, '报名提交失败，请稍后重试'))
   } finally {
     submitting.value = false
   }
@@ -173,6 +176,8 @@ async function submitConfirmForm() {
     ElMessage.success(confirmForm.approved ? '报名已审核通过' : '报名已驳回')
     confirmDialogVisible.value = false
     await loadData()
+  } catch (error) {
+    ElMessage.error(getErrorMessage(error, '报名审核失败，请稍后重试'))
   } finally {
     submitting.value = false
   }

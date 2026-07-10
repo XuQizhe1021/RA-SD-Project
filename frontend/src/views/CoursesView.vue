@@ -11,6 +11,7 @@ import {
   updateCourse,
   type CoursePayload,
 } from '../api/training'
+import { getErrorMessage } from '../api/http'
 import { useAuthStore } from '../stores/auth'
 import type { CourseRecord, LecturerRecord } from '../types/api'
 
@@ -132,6 +133,8 @@ async function submitForm() {
     }
     dialogVisible.value = false
     await loadData()
+  } catch (error) {
+    ElMessage.error(getErrorMessage(error, editingId.value ? '课程更新失败，请稍后重试' : '课程创建失败，请稍后重试'))
   } finally {
     submitting.value = false
   }
@@ -291,8 +294,9 @@ onMounted(async () => {
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="来源申请ID">
-              <el-input-number v-model="form.applicationId" :min="1" style="width: 100%" />
+            <el-form-item label="来源申请ID（可选）">
+              <el-input-number v-model="form.applicationId" :min="1" :value-on-clear="null" controls-position="right" style="width: 100%" />
+              <div class="field-hint">可留空；如填写，需为系统中已存在的培训申请 ID。</div>
             </el-form-item>
           </el-col>
         </el-row>
@@ -447,6 +451,13 @@ p {
   display: flex;
   gap: 8px;
   align-items: center;
+}
+
+.field-hint {
+  margin-top: 6px;
+  color: #94a3b8;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .handled-text {
