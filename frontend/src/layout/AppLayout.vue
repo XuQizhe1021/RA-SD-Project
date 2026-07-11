@@ -118,7 +118,6 @@ function handleLogout() {
           <div class="topbar-meta">{{ topbarMeta }}</div>
         </div>
         <div class="topbar-actions">
-          <el-tag type="primary" effect="light">{{ currentRoleName }}权限已启用</el-tag>
           <el-dropdown>
             <span class="user-badge">
               <el-avatar :size="34">{{ authStore.user?.displayName?.slice(0, 1) }}</el-avatar>

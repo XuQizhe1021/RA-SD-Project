@@ -14,13 +14,15 @@ const roleNameMap: Record<string, string> = {
   STUDENT: '学员',
 }
 
+const displayName = computed(() => authStore.user?.displayName || roleNameMap[primaryRole.value] || '用户')
+
 const heroContent = computed(() => {
   if (primaryRole.value === 'MANAGER') {
     return {
       tag: '首页概览',
       title: '关注培训申请、课程计划和经营统计',
       description: '围绕培训申请处理、课程推进情况和统计结果查看整体业务运行状态。',
-      alert: '经理可查看课程与讲师资源情况，并在培训申请、统计报表模块跟踪整体经营表现。',
+      alert: `欢迎回来，${displayName.value}！您可在此查看培训申请进度、课程安排与统计报表。`,
     }
   }
   if (primaryRole.value === 'EXECUTOR') {
@@ -28,7 +30,7 @@ const heroContent = computed(() => {
       tag: '首页概览',
       title: '负责课程落地、讲师协调、通知发布与报名审核',
       description: '围绕课程、讲师、学员、通知和报名流转组织培训执行工作。',
-      alert: '执行人是培训主流程的核心协调角色，需持续跟进报名审核、开课提醒与现场交接。',
+      alert: `欢迎回来，${displayName.value}！您可继续维护课程资源、发布通知并跟进报名审核。`,
     }
   }
   if (primaryRole.value === 'SITE_STAFF') {
@@ -36,14 +38,14 @@ const heroContent = computed(() => {
       tag: '首页概览',
       title: '聚焦签到、收费与培训现场支持',
       description: '围绕培训当天的签到、收费和现场收尾工作开展处理与核验。',
-      alert: '现场工作人员负责培训当日到场核验、资料发放、收费登记与评价回收。',
+      alert: `欢迎回来，${displayName.value}！您可在此处理签到、收费和培训现场支持工作。`,
     }
   }
   return {
     tag: '首页概览',
     title: '查看通知、提交报名、完成缴费与课程评价',
     description: '围绕通知浏览、报名、缴费和评价提交完成个人培训参与流程。',
-    alert: '学员仅可查看和操作自己的报名及缴费记录，不再接触后台审核类操作。',
+    alert: `欢迎回来，${displayName.value}！您可在此查看通知、管理报名与缴费，并完成课程评价。`,
   }
 })
 
@@ -157,7 +159,7 @@ const guidanceItems = computed(() => {
       </div>
       <el-alert
         :title="heroContent.alert"
-        type="success"
+        type="info"
         :closable="false"
         show-icon
       />

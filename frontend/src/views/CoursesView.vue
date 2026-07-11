@@ -25,6 +25,7 @@ const submitting = ref(false)
 const formRef = ref<FormInstance>()
 const editingId = ref<number | null>(null)
 const lecturerOptions = ref<LecturerRecord[]>([])
+const inactiveLecturerOption = ref<LecturerRecord | null>(null)
 const applicationOptions = ref<ApplicationOptionRecord[]>([])
 
 const query = reactive({
@@ -67,6 +68,9 @@ const pageDescription = computed(() =>
     ? '经理可查看课程计划、讲师安排与发布进度，用于掌握培训项目执行情况，但不直接修改课程数据。'
     : '执行人负责新增、编辑和发布课程，并可直接承接审批通过的培训申请，继续推进通知、报名和现场执行流程。',
 )
+const dialogLecturerOptions = computed(() =>
+  inactiveLecturerOption.value ? [inactiveLecturerOption.value, ...lecturerOptions.value] : lecturerOptions.value,
+)
 
 async function loadLecturerOptions() {
   const response = await fetchLecturerOptions()
@@ -101,6 +105,7 @@ async function loadData() {
 
 function resetForm() {
   editingId.value = null
+  inactiveLecturerOption.value = null
   form.applicationId = null
   form.courseName = ''
   form.lecturerId = undefined
@@ -119,6 +124,7 @@ function openCreateDialog() {
 
 function openEditDialog(row: CourseRecord) {
   editingId.value = row.id
+  inactiveLecturerOption.value = buildInactiveLecturerOption(row)
   form.applicationId = row.applicationId
   form.courseName = row.courseName
   form.lecturerId = row.lecturerId ?? undefined
@@ -128,6 +134,36 @@ function openEditDialog(row: CourseRecord) {
   form.quota = row.quota
   form.feeAmount = Number(row.feeAmount ?? 0)
   dialogVisible.value = true
+}
+
+function buildInactiveLecturerOption(row: CourseRecord) {
+  if (!row.lecturerId) {
+    return null
+  }
+  const matchedLecturer = lecturerOptions.value.find((lecturer) => lecturer.id === row.lecturerId)
+  if (matchedLecturer) {
+    return null
+  }
+  return {
+    id: row.lecturerId,
+    lecturerNo: '',
+    fullName: row.lecturerName || `讲师${row.lecturerId}`,
+    title: '',
+    specialty: '',
+    phone: '',
+    email: '',
+    feeStandard: 0,
+    profileText: '',
+    status: 'DISABLED',
+    createdAt: '',
+    updatedAt: '',
+  } satisfies LecturerRecord
+}
+
+function formatLecturerOptionLabel(lecturer: LecturerRecord) {
+  const specialty = lecturer.specialty || '未填写专长'
+  const statusSuffix = lecturer.status === 'ACTIVE' ? '' : '（已停用）'
+  return `${lecturer.fullName} / ${specialty}${statusSuffix}`
 }
 
 function applyRouteApplicationPreset() {
@@ -350,12 +386,14 @@ watch(
             <el-form-item label="授课讲师">
               <el-select v-model="form.lecturerId" clearable placeholder="请选择讲师" style="width: 100%">
                 <el-option
-                  v-for="lecturer in lecturerOptions"
+                  v-for="lecturer in dialogLecturerOptions"
                   :key="lecturer.id"
-                  :label="`${lecturer.fullName} / ${lecturer.specialty || '未填写专长'}`"
+                  :label="formatLecturerOptionLabel(lecturer)"
                   :value="lecturer.id"
+                  :disabled="lecturer.status !== 'ACTIVE'"
                 />
               </el-select>
+              <div v-if="inactiveLecturerOption" class="field-hint">当前课程仍关联已停用讲师，如需调整请选择启用中的讲师。</div>
             </el-form-item>
           </el-col>
           <el-col :span="12">

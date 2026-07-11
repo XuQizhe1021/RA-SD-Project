@@ -65,22 +65,9 @@ const pageTag = computed(() => (authStore.hasRole('SITE_STAFF') ? '签到办理'
 const pageTitle = computed(() => (authStore.hasRole('SITE_STAFF') ? '签到管理' : '签到记录'))
 const pageDescription = computed(() =>
   authStore.hasRole('SITE_STAFF')
-    ? '培训当天由现场工作人员根据已确认报名名单执行签到，签到结果、操作人和备注直接写入数据库。'
-    : '当前角色仅可查看签到说明，不具备培训现场签到权限。',
+    ? '请根据已确认报名名单，为到场学员办理签到并记录资料发放情况。'
+    : '可在此查看课程签到记录与资料发放情况。',
 )
-
-const roleBoundaries = [
-  '经理：不进入签到模块，通过统计报表查看培训到场情况。',
-  '执行人：不执行签到，负责在培训前完成课程、通知、报名审核等准备工作。',
-  '现场工作人员：查看已确认报名名单、执行签到、记录现场备注。',
-  '学员：不进入签到管理页面，只在现场由工作人员核验后签到。',
-]
-
-const businessRules = [
-  '签到记录来源于报名审核通过后自动生成的 attendance_record 数据。',
-  '仅状态为 CONFIRMED 的报名允许签到，未在名单内的学员无法签到。',
-  '同一报名记录只允许签到一次，重复签到会被后端拒绝。',
-]
 
 async function loadCourseOptions() {
   const response = await fetchEnrollmentCourseOptions()
@@ -230,23 +217,6 @@ onMounted(async () => {
           <span>待签到</span>
           <strong>{{ uncheckedCount }}</strong>
         </div>
-      </div>
-    </section>
-
-    <section class="page-card meta-card">
-      <div class="meta-grid">
-        <article class="meta-panel">
-          <div class="meta-title">角色边界</div>
-          <ul class="meta-list">
-            <li v-for="item in roleBoundaries" :key="item">{{ item }}</li>
-          </ul>
-        </article>
-        <article class="meta-panel">
-          <div class="meta-title">业务规则</div>
-          <ul class="meta-list">
-            <li v-for="item in businessRules" :key="item">{{ item }}</li>
-          </ul>
-        </article>
       </div>
     </section>
 
@@ -497,36 +467,6 @@ p {
   gap: 16px;
 }
 
-.meta-card {
-  padding: 22px 24px;
-}
-
-.meta-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-}
-
-.meta-panel {
-  padding: 18px;
-  border-radius: 18px;
-  background: #f8fafc;
-}
-
-.meta-title {
-  margin-bottom: 12px;
-  color: #0f172a;
-  font-size: 16px;
-  font-weight: 700;
-}
-
-.meta-list {
-  margin: 0;
-  padding-left: 18px;
-  color: #475569;
-  line-height: 1.8;
-}
-
 .filter-row {
   display: flex;
   gap: 12px;
@@ -573,10 +513,6 @@ p {
 
   .summary-metrics {
     min-width: 0;
-  }
-
-  .meta-grid {
-    grid-template-columns: 1fr;
   }
 }
 </style>
