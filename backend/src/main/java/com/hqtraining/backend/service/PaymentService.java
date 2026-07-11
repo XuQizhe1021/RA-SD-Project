@@ -37,6 +37,8 @@ public class PaymentService {
             toLocalDateTime(rs.getTimestamp("paid_at")),
             rs.getObject("handled_by", Long.class),
             rs.getString("handled_by_name"),
+            rs.getString("payer_name"),
+            rs.getString("payment_remark"),
             rs.getTimestamp("created_at").toLocalDateTime(),
             rs.getTimestamp("updated_at").toLocalDateTime()
     );
@@ -110,6 +112,8 @@ public class PaymentService {
                     pr.paid_at,
                     pr.handled_by,
                     COALESCE(u.display_name, '') AS handled_by_name,
+                    COALESCE(pr.payer_name, '') AS payer_name,
+                    COALESCE(pr.payment_remark, '') AS payment_remark,
                     pr.created_at,
                     pr.updated_at
                 FROM payment_record pr
@@ -167,6 +171,8 @@ public class PaymentService {
                     pr.paid_at,
                     pr.handled_by,
                     COALESCE(u.display_name, '') AS handled_by_name,
+                    COALESCE(pr.payer_name, '') AS payer_name,
+                    COALESCE(pr.payment_remark, '') AS payment_remark,
                     pr.created_at,
                     pr.updated_at
                 FROM payment_record pr
@@ -200,36 +206,59 @@ public class PaymentService {
         if ("PAID".equals(existing.paymentStatus()) || "CORPORATE_PAID".equals(existing.paymentStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "该收费记录已完成支付，不能重复收费");
         }
+        if ("WAIVED".equals(existing.paymentStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "该收费记录已登记为免收，不能重复收费");
+        }
 
         String normalizedMethod = request.paymentMethod().trim().toUpperCase();
-        if (!"CASH".equals(normalizedMethod) && !"TRANSFER".equals(normalizedMethod) && !"CORPORATE".equals(normalizedMethod)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "收费方式仅支持 CASH、TRANSFER、CORPORATE");
+        if (!"CASH".equals(normalizedMethod)
+                && !"TRANSFER".equals(normalizedMethod)
+                && !"CORPORATE".equals(normalizedMethod)
+                && !"AGENT".equals(normalizedMethod)
+                && !"WAIVED".equals(normalizedMethod)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "收费方式仅支持 CASH、TRANSFER、CORPORATE、AGENT、WAIVED");
         }
         if (currentUser.hasRole("STUDENT")) {
             if ("CORPORATE".equals(existing.paymentType())) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "企业付费课程由企业统一结算，学员无需自行缴费");
             }
-            if ("CORPORATE".equals(normalizedMethod)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "学员缴费不支持企业登记方式");
+            if (!"CASH".equals(normalizedMethod) && !"TRANSFER".equals(normalizedMethod)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "学员缴费仅支持现金或转账登记");
             }
         }
 
         BigDecimal paidAmount = request.paidAmount();
         String nextStatus;
+        String payerName = emptyToNull(request.payerName());
         if ("CORPORATE".equals(existing.paymentType())) {
-            nextStatus = "CORPORATE_PAID";
-        } else {
-            if (paidAmount.compareTo(existing.receivableAmount()) < 0) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "个人付费的实收金额不能小于应收金额");
+            if (!"CORPORATE".equals(normalizedMethod)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "企业付费记录仅支持企业登记方式");
             }
-            nextStatus = "PAID";
+            nextStatus = "CORPORATE_PAID";
+            paidAmount = existing.receivableAmount();
+        } else {
+            if ("WAIVED".equals(normalizedMethod)) {
+                if (currentUser.hasRole("STUDENT")) {
+                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "学员无权登记免收");
+                }
+                nextStatus = "WAIVED";
+                paidAmount = BigDecimal.ZERO;
+            } else {
+                if (paidAmount.compareTo(existing.receivableAmount()) < 0) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "个人付费的实收金额不能小于应收金额");
+                }
+                if ("AGENT".equals(normalizedMethod) && payerName == null) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "代缴时必须填写代缴人");
+                }
+                nextStatus = "PAID";
+            }
         }
 
         LocalDateTime now = LocalDateTime.now();
         int updatedRows = jdbcTemplate.update(
                 """
                 UPDATE payment_record
-                SET paid_amount = ?, payment_method = ?, payment_status = ?, paid_at = ?, handled_by = ?, updated_at = ?
+                SET paid_amount = ?, payment_method = ?, payment_status = ?, paid_at = ?, handled_by = ?, payer_name = ?, payment_remark = ?, updated_at = ?
                 WHERE id = ?
                 """,
                 paidAmount,
@@ -237,6 +266,8 @@ public class PaymentService {
                 nextStatus,
                 Timestamp.valueOf(now),
                 currentUser.id(),
+                payerName,
+                emptyToNull(request.paymentRemark()),
                 Timestamp.valueOf(now),
                 id
         );

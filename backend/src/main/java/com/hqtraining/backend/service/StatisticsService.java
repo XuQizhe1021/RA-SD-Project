@@ -2,6 +2,7 @@ package com.hqtraining.backend.service;
 
 import com.hqtraining.backend.model.CourseStatisticsRecord;
 import com.hqtraining.backend.model.CurrentUser;
+import com.hqtraining.backend.model.ExecutorStatisticsRecord;
 import com.hqtraining.backend.model.LecturerStatisticsRecord;
 import com.hqtraining.backend.model.RevenueDetailRecord;
 import com.hqtraining.backend.model.RevenueStatisticsResponse;
@@ -66,6 +67,17 @@ public class StatisticsService {
             rs.getString("payment_method"),
             toLocalDateTime(rs.getTimestamp("paid_at")),
             rs.getString("handled_by_name")
+    );
+
+    private static final RowMapper<ExecutorStatisticsRecord> EXECUTOR_STATISTICS_ROW_MAPPER = (rs, rowNum) -> new ExecutorStatisticsRecord(
+            rs.getLong("executor_user_id"),
+            rs.getString("executor_name"),
+            rs.getInt("course_count"),
+            rs.getInt("published_course_count"),
+            rs.getInt("enrollment_reviewed_count"),
+            rs.getInt("training_completed_count"),
+            rs.getInt("attendance_count"),
+            rs.getBigDecimal("paid_amount_total")
     );
 
     private final JdbcTemplate jdbcTemplate;
@@ -343,6 +355,93 @@ public class StatisticsService {
                 cashAmountRatio,
                 transferAmountRatio,
                 details
+        );
+    }
+
+    public List<ExecutorStatisticsRecord> getExecutorStatistics(
+            LocalDate startDate,
+            LocalDate endDate,
+            String keyword,
+            CurrentUser currentUser
+    ) {
+        ensureStatisticsReader(currentUser);
+        FilterRange range = normalizeRange(startDate, endDate);
+        String likeKeyword = normalizeLikeKeyword(keyword);
+
+        return jdbcTemplate.query(
+                """
+                SELECT
+                    ua.id AS executor_user_id,
+                    ua.display_name AS executor_name,
+                    COALESCE(course_stats.course_count, 0) AS course_count,
+                    COALESCE(course_stats.published_course_count, 0) AS published_course_count,
+                    COALESCE(review_stats.enrollment_reviewed_count, 0) AS enrollment_reviewed_count,
+                    COALESCE(course_stats.training_completed_count, 0) AS training_completed_count,
+                    COALESCE(attendance_stats.attendance_count, 0) AS attendance_count,
+                    COALESCE(revenue_stats.paid_amount_total, 0.00) AS paid_amount_total
+                FROM user_account ua
+                INNER JOIN user_role ur ON ur.user_id = ua.id
+                INNER JOIN role r ON ur.role_id = r.id AND r.role_code = 'EXECUTOR'
+                LEFT JOIN (
+                    SELECT
+                        c.executor_user_id,
+                        COUNT(*) AS course_count,
+                        SUM(CASE WHEN c.status IN ('PUBLISHED', 'ONGOING', 'FINISHED') THEN 1 ELSE 0 END) AS published_course_count,
+                        SUM(CASE WHEN c.status = 'FINISHED' THEN 1 ELSE 0 END) AS training_completed_count
+                    FROM course c
+                    WHERE c.start_time >= ? AND c.start_time < ?
+                    GROUP BY c.executor_user_id
+                ) course_stats ON course_stats.executor_user_id = ua.id
+                LEFT JOIN (
+                    SELECT
+                        e.confirmed_by AS executor_user_id,
+                        COUNT(*) AS enrollment_reviewed_count
+                    FROM enrollment e
+                    WHERE e.confirmed_at >= ? AND e.confirmed_at < ?
+                      AND e.confirmed_by IS NOT NULL
+                    GROUP BY e.confirmed_by
+                ) review_stats ON review_stats.executor_user_id = ua.id
+                LEFT JOIN (
+                    SELECT
+                        c.executor_user_id,
+                        COUNT(*) AS attendance_count
+                    FROM attendance_record ar
+                    INNER JOIN course c ON ar.course_id = c.id
+                    WHERE ar.status = 'CHECKED_IN'
+                      AND c.start_time >= ?
+                      AND c.start_time < ?
+                    GROUP BY c.executor_user_id
+                ) attendance_stats ON attendance_stats.executor_user_id = ua.id
+                LEFT JOIN (
+                    SELECT
+                        c.executor_user_id,
+                        SUM(pr.paid_amount) AS paid_amount_total
+                    FROM payment_record pr
+                    INNER JOIN course c ON pr.course_id = c.id
+                    WHERE c.start_time >= ? AND c.start_time < ?
+                    GROUP BY c.executor_user_id
+                ) revenue_stats ON revenue_stats.executor_user_id = ua.id
+                WHERE (
+                    COALESCE(course_stats.course_count, 0) > 0
+                    OR COALESCE(review_stats.enrollment_reviewed_count, 0) > 0
+                    OR COALESCE(attendance_stats.attendance_count, 0) > 0
+                    OR COALESCE(revenue_stats.paid_amount_total, 0.00) > 0
+                  )
+                  AND (
+                    ? IS NULL
+                    OR ua.username LIKE ?
+                    OR ua.display_name LIKE ?
+                  )
+                ORDER BY COALESCE(review_stats.enrollment_reviewed_count, 0) DESC,
+                         COALESCE(course_stats.course_count, 0) DESC,
+                         ua.id ASC
+                """,
+                EXECUTOR_STATISTICS_ROW_MAPPER,
+                range.startAt(), range.endExclusive(),
+                range.startAt(), range.endExclusive(),
+                range.startAt(), range.endExclusive(),
+                range.startAt(), range.endExclusive(),
+                likeKeyword, likeKeyword, likeKeyword
         );
     }
 

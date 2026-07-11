@@ -62,15 +62,15 @@ const currentTitle = computed(() => titleMap[route.path] ?? 'HQ技术培训管�
 const currentRoleName = computed(() => roleNameMap[authStore.primaryRole] ?? authStore.primaryRole)
 const topbarMeta = computed(() => {
   if (authStore.hasRole('MANAGER')) {
-    return '经理视角：聚焦申请审批、课程计划与经营统计'
+    return '聚焦培训申请审批、课程计划跟踪与经营统计分析。'
   }
   if (authStore.hasRole('EXECUTOR')) {
-    return '执行人视角：维护课程、讲师、学员、通知与报名主流程'
+    return '维护课程、讲师、学员、通知与报名等培训执行数据。'
   }
   if (authStore.hasRole('SITE_STAFF')) {
-    return '现场视角：负责签到、收费和培训现场收尾工作'
+    return '负责签到登记、收费处理与培训现场收尾工作。'
   }
-  return '学员视角：查看通知、提交报名、完成缴费并参与课程评价'
+  return '查看培训通知、提交报名、完成缴费并参与课程评价。'
 })
 
 function menuIcon(icon?: string) {
@@ -90,7 +90,7 @@ function handleLogout() {
         <div class="brand-icon">HQ</div>
         <div>
           <div class="brand-title">HQ技术培训管理系统</div>
-          <div class="brand-subtitle">Sprint Day11 签到收费版本</div>
+          <div class="brand-subtitle">培训业务管理平台</div>
         </div>
       </div>
       <el-menu :default-active="activeMenu" class="menu-panel" router>
@@ -118,7 +118,7 @@ function handleLogout() {
           <div class="topbar-meta">{{ topbarMeta }}</div>
         </div>
         <div class="topbar-actions">
-          <el-tag type="primary" effect="light">{{ currentRoleName }}权限已按职责边界收敛</el-tag>
+          <el-tag type="primary" effect="light">{{ currentRoleName }}权限已启用</el-tag>
           <el-dropdown>
             <span class="user-badge">
               <el-avatar :size="34">{{ authStore.user?.displayName?.slice(0, 1) }}</el-avatar>

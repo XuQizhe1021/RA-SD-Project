@@ -77,6 +77,7 @@ public class AuthService {
         if (currentUser.hasRole("EXECUTOR")) {
             return List.of(
                     new MenuItem("首页概览", "/dashboard", "HomeFilled"),
+                    new MenuItem("培训申请", "/applications", "EditPen"),
                     new MenuItem("课程管理", "/courses", "Reading"),
                     new MenuItem("讲师管理", "/lecturers", "UserFilled"),
                     new MenuItem("学员管理", "/students", "User"),

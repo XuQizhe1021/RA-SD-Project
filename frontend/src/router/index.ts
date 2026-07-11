@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 import AppLayout from '../layout/AppLayout.vue'
+import ApplicationsView from '../views/ApplicationsView.vue'
 import AttendanceView from '../views/AttendanceView.vue'
 import { useAuthStore } from '../stores/auth'
 import CoursesView from '../views/CoursesView.vue'
@@ -9,9 +10,10 @@ import EvaluationView from '../views/EvaluationView.vue'
 import HomeView from '../views/HomeView.vue'
 import LecturersView from '../views/LecturersView.vue'
 import LoginView from '../views/LoginView.vue'
+import NoticesView from '../views/NoticesView.vue'
 import PaymentsView from '../views/PaymentsView.vue'
-import PlaceholderView from '../views/PlaceholderView.vue'
 import StatisticsView from '../views/StatisticsView.vue'
+import StudentsView from '../views/StudentsView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -39,7 +41,7 @@ const router = createRouter({
         {
           path: 'applications',
           name: 'applications',
-          component: PlaceholderView,
+          component: ApplicationsView,
           meta: { title: '培训申请' },
         },
         {
@@ -57,13 +59,13 @@ const router = createRouter({
         {
           path: 'students',
           name: 'students',
-          component: PlaceholderView,
+          component: StudentsView,
           meta: { title: '学员管理' },
         },
         {
           path: 'notices',
           name: 'notices',
-          component: PlaceholderView,
+          component: NoticesView,
           meta: { title: '通知发布' },
         },
         {

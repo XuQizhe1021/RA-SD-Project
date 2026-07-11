@@ -19,6 +19,8 @@ public record AttendanceRecordView(
         Long checkedInBy,
         String checkedInByName,
         String remark,
+        String materialStatus,
+        String materialRemark,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {

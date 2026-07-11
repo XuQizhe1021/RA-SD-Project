@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Check, Close, Plus, Search } from '@element-plus/icons-vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 
 import {
   confirmEnrollment,
@@ -21,6 +22,7 @@ import type {
 } from '../types/api'
 
 const authStore = useAuthStore()
+const route = useRoute()
 const loading = ref(false)
 const createDialogVisible = ref(false)
 const confirmDialogVisible = ref(false)
@@ -71,7 +73,7 @@ const pendingCount = computed(() => pageData.list.filter((item) => item.status =
 const rejectedCount = computed(() => pageData.list.filter((item) => item.status === 'REJECTED').length)
 const isStudentView = computed(() => authStore.hasRole('STUDENT'))
 const currentStudentOption = computed(() => studentOptions.value[0] ?? null)
-const pageTag = computed(() => (isStudentView.value ? '学员报名视角' : '执行人审核视角'))
+const pageTag = computed(() => (isStudentView.value ? '课程报名' : '报名审核'))
 const pageTitle = computed(() => (isStudentView.value ? '我的培训报名' : '学员报名管理'))
 const pageDescription = computed(() =>
   isStudentView.value
@@ -89,6 +91,7 @@ async function loadOptions() {
   if (isStudentView.value && currentStudentOption.value) {
     createForm.studentId = currentStudentOption.value.id
   }
+  applyRouteCourseFilter()
 }
 
 async function loadData() {
@@ -115,7 +118,7 @@ function handleSearch() {
 }
 
 function resetCreateForm() {
-  createForm.courseId = 0
+  createForm.courseId = query.courseId ?? 0
   createForm.studentId = isStudentView.value ? (currentStudentOption.value?.id ?? 0) : 0
   createForm.paymentType = 'PERSONAL'
 }
@@ -129,6 +132,11 @@ function resetConfirmForm() {
 function openCreateDialog() {
   resetCreateForm()
   createDialogVisible.value = true
+}
+
+function applyRouteCourseFilter() {
+  const routeCourseId = Number(route.query.courseId ?? 0)
+  query.courseId = routeCourseId || undefined
 }
 
 function openConfirmDialog(row: EnrollmentRecord, approved: boolean) {
@@ -228,6 +236,14 @@ function handleConfirmDialogClosed() {
 onMounted(async () => {
   await Promise.all([loadOptions(), loadData()])
 })
+
+watch(
+  () => route.query.courseId,
+  async () => {
+    applyRouteCourseFilter()
+    await loadData()
+  },
+)
 </script>
 
 <template>

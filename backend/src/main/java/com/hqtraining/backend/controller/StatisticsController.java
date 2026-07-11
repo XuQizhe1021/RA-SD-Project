@@ -3,6 +3,7 @@ package com.hqtraining.backend.controller;
 import com.hqtraining.backend.common.ApiResponse;
 import com.hqtraining.backend.model.CourseStatisticsRecord;
 import com.hqtraining.backend.model.CurrentUser;
+import com.hqtraining.backend.model.ExecutorStatisticsRecord;
 import com.hqtraining.backend.model.LecturerStatisticsRecord;
 import com.hqtraining.backend.model.RevenueStatisticsResponse;
 import com.hqtraining.backend.model.StudentStatisticsRecord;
@@ -61,6 +62,17 @@ public class StatisticsController {
     ) {
         CurrentUser currentUser = authService.requireCurrentUser(authorizationHeader);
         return ApiResponse.success(statisticsService.getLecturerStatistics(startDate, endDate, keyword, currentUser));
+    }
+
+    @GetMapping("/executors")
+    public ApiResponse<List<ExecutorStatisticsRecord>> executors(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) String keyword,
+            @RequestHeader("Authorization") String authorizationHeader
+    ) {
+        CurrentUser currentUser = authService.requireCurrentUser(authorizationHeader);
+        return ApiResponse.success(statisticsService.getExecutorStatistics(startDate, endDate, keyword, currentUser));
     }
 
     @GetMapping("/revenue")

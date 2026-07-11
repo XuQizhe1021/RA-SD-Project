@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Check, Search } from '@element-plus/icons-vue'
+import { Box, Check, Search } from '@element-plus/icons-vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { computed, onMounted, reactive, ref } from 'vue'
 
@@ -7,7 +7,9 @@ import {
   checkInAttendance,
   fetchAttendancePage,
   fetchEnrollmentCourseOptions,
+  updateAttendanceMaterials,
   type AttendanceCheckInPayload,
+  type AttendanceMaterialPayload,
 } from '../api/training'
 import { getErrorMessage } from '../api/http'
 import { useAuthStore } from '../stores/auth'
@@ -17,7 +19,9 @@ const authStore = useAuthStore()
 const loading = ref(false)
 const submitting = ref(false)
 const dialogVisible = ref(false)
+const materialDialogVisible = ref(false)
 const formRef = ref<FormInstance>()
+const materialFormRef = ref<FormInstance>()
 const selectedRecord = ref<AttendanceRecordView | null>(null)
 const courseOptions = ref<CourseOptionRecord[]>([])
 
@@ -36,15 +40,28 @@ const pageData = reactive({
 
 const form = reactive<AttendanceCheckInPayload>({
   remark: '',
+  materialStatus: 'PENDING',
+  materialRemark: '',
+})
+
+const materialForm = reactive<AttendanceMaterialPayload>({
+  materialStatus: 'PENDING',
+  materialRemark: '',
 })
 
 const rules: FormRules<AttendanceCheckInPayload> = {
   remark: [{ max: 255, message: '签到备注长度不能超过255', trigger: 'blur' }],
+  materialRemark: [{ max: 255, message: '资料备注长度不能超过255', trigger: 'blur' }],
+}
+
+const materialRules: FormRules<AttendanceMaterialPayload> = {
+  materialStatus: [{ required: true, message: '请选择资料发放状态', trigger: 'change' }],
+  materialRemark: [{ max: 255, message: '资料备注长度不能超过255', trigger: 'blur' }],
 }
 
 const checkedInCount = computed(() => pageData.list.filter((item) => item.attendanceStatus === 'CHECKED_IN').length)
 const uncheckedCount = computed(() => pageData.list.filter((item) => item.attendanceStatus === 'NOT_CHECKED_IN').length)
-const pageTag = computed(() => (authStore.hasRole('SITE_STAFF') ? '现场工作人员签到视角' : '签到查看视角'))
+const pageTag = computed(() => (authStore.hasRole('SITE_STAFF') ? '签到办理' : '签到总览'))
 const pageTitle = computed(() => (authStore.hasRole('SITE_STAFF') ? '签到管理' : '签到记录'))
 const pageDescription = computed(() =>
   authStore.hasRole('SITE_STAFF')
@@ -95,7 +112,16 @@ function handleSearch() {
 function openCheckInDialog(row: AttendanceRecordView) {
   selectedRecord.value = row
   form.remark = row.remark ?? ''
+  form.materialStatus = row.materialStatus ?? 'PENDING'
+  form.materialRemark = row.materialRemark ?? ''
   dialogVisible.value = true
+}
+
+function openMaterialDialog(row: AttendanceRecordView) {
+  selectedRecord.value = row
+  materialForm.materialStatus = row.materialStatus ?? 'PENDING'
+  materialForm.materialRemark = row.materialRemark ?? ''
+  materialDialogVisible.value = true
 }
 
 async function submitCheckIn() {
@@ -108,6 +134,8 @@ async function submitCheckIn() {
   try {
     await checkInAttendance(selectedRecord.value.id, {
       remark: form.remark?.trim() || '',
+      materialStatus: form.materialStatus,
+      materialRemark: form.materialRemark?.trim() || '',
     })
     ElMessage.success('签到已完成')
     dialogVisible.value = false
@@ -123,6 +151,37 @@ function handleDialogClosed() {
   formRef.value?.resetFields()
   selectedRecord.value = null
   form.remark = ''
+  form.materialStatus = 'PENDING'
+  form.materialRemark = ''
+}
+
+async function submitMaterialForm() {
+  const valid = await materialFormRef.value?.validate().catch(() => false)
+  if (!valid || !selectedRecord.value) {
+    return
+  }
+
+  submitting.value = true
+  try {
+    await updateAttendanceMaterials(selectedRecord.value.id, {
+      materialStatus: materialForm.materialStatus,
+      materialRemark: materialForm.materialRemark?.trim() || '',
+    })
+    ElMessage.success('资料发放记录已更新')
+    materialDialogVisible.value = false
+    await loadData()
+  } catch (error) {
+    ElMessage.error(getErrorMessage(error, '资料发放记录更新失败，请稍后重试'))
+  } finally {
+    submitting.value = false
+  }
+}
+
+function handleMaterialDialogClosed() {
+  materialFormRef.value?.resetFields()
+  selectedRecord.value = null
+  materialForm.materialStatus = 'PENDING'
+  materialForm.materialRemark = ''
 }
 
 function formatTime(value: string | null) {
@@ -135,6 +194,14 @@ function statusTagType(value: string) {
 
 function statusText(value: string) {
   return value === 'CHECKED_IN' ? '已签到' : '未签到'
+}
+
+function materialStatusText(value: string) {
+  return value === 'ISSUED' ? '已发放' : '待发放'
+}
+
+function materialStatusTagType(value: string) {
+  return value === 'ISSUED' ? 'success' : 'warning'
 }
 
 onMounted(async () => {
@@ -235,18 +302,29 @@ onMounted(async () => {
           </template>
         </el-table-column>
         <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip />
-        <el-table-column label="操作" width="160" fixed="right">
+        <el-table-column prop="materialStatus" label="资料发放" width="110">
           <template #default="{ row }">
-            <el-button
-              v-if="row.attendanceStatus === 'NOT_CHECKED_IN'"
-              link
-              type="success"
-              :icon="Check"
-              @click="openCheckInDialog(row)"
-            >
-              执行签到
-            </el-button>
-            <span v-else class="handled-text">已完成签到</span>
+            <el-tag :type="materialStatusTagType(row.materialStatus)">
+              {{ materialStatusText(row.materialStatus) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="materialRemark" label="资料备注" min-width="180" show-overflow-tooltip />
+        <el-table-column label="操作" width="220" fixed="right">
+          <template #default="{ row }">
+            <div class="action-row">
+              <el-button
+                v-if="row.attendanceStatus === 'NOT_CHECKED_IN'"
+                link
+                type="success"
+                :icon="Check"
+                @click="openCheckInDialog(row)"
+              >
+                执行签到
+              </el-button>
+              <span v-else class="handled-text">已完成签到</span>
+              <el-button link type="primary" :icon="Box" @click="openMaterialDialog(row)">资料记录</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -287,11 +365,63 @@ onMounted(async () => {
             placeholder="可填写座位、资料发放等备注"
           />
         </el-form-item>
+        <el-form-item label="资料状态" prop="materialStatus">
+          <el-radio-group v-model="form.materialStatus">
+            <el-radio value="PENDING">待发放</el-radio>
+            <el-radio value="ISSUED">已发放</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="资料备注" prop="materialRemark">
+          <el-input
+            v-model="form.materialRemark"
+            type="textarea"
+            :rows="3"
+            maxlength="255"
+            show-word-limit
+            placeholder="可填写资料包、讲义领取情况等说明"
+          />
+        </el-form-item>
       </el-form>
 
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="submitting" @click="submitCheckIn">确认签到</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="materialDialogVisible"
+      title="维护资料发放记录"
+      width="600px"
+      @closed="handleMaterialDialogClosed"
+    >
+      <div class="confirm-summary" v-if="selectedRecord">
+        <div>报名编号：{{ selectedRecord.enrollmentNo }}</div>
+        <div>课程名称：{{ selectedRecord.courseName }}</div>
+        <div>学员姓名：{{ selectedRecord.studentName }}</div>
+      </div>
+      <el-form ref="materialFormRef" :model="materialForm" :rules="materialRules" label-width="88px">
+        <el-form-item label="发放状态" prop="materialStatus">
+          <el-radio-group v-model="materialForm.materialStatus">
+            <el-radio value="PENDING">待发放</el-radio>
+            <el-radio value="ISSUED">已发放</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="资料备注" prop="materialRemark">
+          <el-input
+            v-model="materialForm.materialRemark"
+            type="textarea"
+            :rows="4"
+            maxlength="255"
+            show-word-limit
+            placeholder="请填写资料包、教材或签领情况"
+          />
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="materialDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="submitting" @click="submitMaterialForm">保存记录</el-button>
       </template>
     </el-dialog>
   </div>
@@ -407,6 +537,12 @@ p {
 .filter-row .el-input,
 .filter-row .el-select {
   max-width: 280px;
+}
+
+.action-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .handled-text {

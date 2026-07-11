@@ -27,6 +27,39 @@ export interface LecturerRecord {
   updatedAt: string
 }
 
+export interface TrainingApplicationRecord {
+  id: number
+  applicationNo: string
+  companyId: number
+  companyName: string
+  applicantUserId: number | null
+  applicantName: string
+  topic: string
+  expectedStartDate: string | null
+  expectedEndDate: string | null
+  attendeeCount: number
+  budgetAmount: number | null
+  requirementDesc: string
+  status: string
+  approvalComment: string | null
+  approvedBy: number | null
+  approvedByName: string
+  approvedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ApplicationOptionRecord {
+  id: number
+  applicationNo: string
+  companyName: string
+  topic: string
+  expectedStartDate: string | null
+  expectedEndDate: string | null
+  attendeeCount: number
+  budgetAmount: number | null
+}
+
 export interface CourseRecord {
   id: number
   courseNo: string
@@ -65,6 +98,23 @@ export interface StudentOptionRecord {
   companyName: string
   phone: string
   email: string
+}
+
+export interface StudentProfileRecord {
+  id: number
+  userId: number | null
+  studentNo: string
+  fullName: string
+  gender: string
+  companyId: number | null
+  companyName: string
+  jobTitle: string
+  educationLevel: string
+  techLevel: string
+  phone: string
+  email: string
+  createdAt: string
+  updatedAt: string
 }
 
 export interface EnrollmentRecord {
@@ -107,6 +157,8 @@ export interface AttendanceRecordView {
   checkedInBy: number | null
   checkedInByName: string
   remark: string | null
+  materialStatus: string
+  materialRemark: string | null
   createdAt: string
   updatedAt: string
 }
@@ -130,6 +182,26 @@ export interface PaymentRecordView {
   paidAt: string | null
   handledBy: number | null
   handledByName: string
+  payerName: string
+  paymentRemark: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CourseNoticeRecord {
+  id: number
+  courseId: number
+  courseNo: string
+  courseName: string
+  title: string
+  content: string
+  registrationStartAt: string | null
+  registrationEndAt: string | null
+  status: string
+  publishedAt: string | null
+  externalPublishFlag: boolean
+  createdBy: number
+  createdByName: string
   createdAt: string
   updatedAt: string
 }
@@ -244,6 +316,17 @@ export interface LecturerStatisticsRecord {
   attendanceCount: number
   averageRating: number | null
   feeAmountTotal: number
+}
+
+export interface ExecutorStatisticsRecord {
+  executorUserId: number
+  executorName: string
+  courseCount: number
+  publishedCourseCount: number
+  enrollmentReviewedCount: number
+  trainingCompletedCount: number
+  attendanceCount: number
+  paidAmountTotal: number
 }
 
 export interface RevenueDetailRecord {

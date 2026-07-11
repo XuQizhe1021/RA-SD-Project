@@ -48,7 +48,7 @@ const rules: FormRules<LecturerPayload> = {
   specialty: [{ max: 200, message: '专长方向长度不能超过200', trigger: 'blur' }],
 }
 const isManagerView = computed(() => authStore.hasRole('MANAGER'))
-const pageTag = computed(() => (isManagerView.value ? '经理查看视角' : '执行人维护视角'))
+const pageTag = computed(() => (isManagerView.value ? '讲师资源' : '讲师维护'))
 const pageTitle = computed(() => (isManagerView.value ? '讲师资源总览' : '讲师管理'))
 const pageDescription = computed(() =>
   isManagerView.value
@@ -231,7 +231,7 @@ onMounted(() => {
               >
                 停用
               </el-button>
-              <span v-if="isManagerView" class="handled-text">经理仅查看讲师资源情况</span>
+              <span v-if="isManagerView" class="handled-text">当前账号可查看讲师资源情况</span>
             </div>
           </template>
         </el-table-column>

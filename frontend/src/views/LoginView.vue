@@ -12,8 +12,8 @@ const route = useRoute()
 const loading = ref(false)
 
 const form = reactive({
-  username: 'manager01',
-  password: '123456',
+  username: '',
+  password: '',
 })
 
 const quickAccounts = [
@@ -38,27 +38,26 @@ async function handleLogin() {
 
 function fillAccount(username: string) {
   form.username = username
-  form.password = '123456'
 }
 </script>
 
 <template>
   <div class="login-page">
     <div class="intro-card">
-      <div class="chip">Day8 Sprint 启动日</div>
+      <div class="chip">系统入口</div>
       <h1>HQ技术培训管理系统</h1>
       <p>
-        当前版本已完成 `登录 / 鉴权 / 菜单 / 首页` 四项基础能力，可作为后续
-        `课程、讲师、报名、签到收费` 等模块的统一入口。
+        面向培训申请、课程执行、报名审核、签到收费、培训评价与统计分析的统一业务平台，
+        支持多角色按职责边界协同完成培训业务闭环。
       </p>
       <div class="timeline page-card">
         <div class="timeline-item">
-          <strong>上午会议确认</strong>
-          <span>Product Backlog、Sprint Backlog、开发顺序</span>
+          <strong>业务覆盖</strong>
+          <span>支持申请审批、课程维护、通知发布、报名处理、签到收费与统计分析。</span>
         </div>
         <div class="timeline-item">
-          <strong>下午技术落地</strong>
-          <span>框架搭建、建表脚本、登录权限、基础首页</span>
+          <strong>权限控制</strong>
+          <span>系统根据当前账号角色展示可用菜单，并限制跨职责访问与操作。</span>
         </div>
       </div>
     </div>
@@ -66,7 +65,7 @@ function fillAccount(username: string) {
     <div class="login-card page-card">
       <div class="card-header">
         <h2>系统登录</h2>
-        <span>演示环境默认密码均为 `123456`</span>
+        <span>请输入账号和密码后登录系统。</span>
       </div>
       <el-form label-position="top" @submit.prevent="handleLogin">
         <el-form-item label="账号">
@@ -94,7 +93,7 @@ function fillAccount(username: string) {
       </el-form>
 
       <div class="quick-panel">
-        <div class="quick-title">快捷试登账号</div>
+        <div class="quick-title">常用账号</div>
         <div class="quick-list">
           <el-tag
             v-for="account in quickAccounts"

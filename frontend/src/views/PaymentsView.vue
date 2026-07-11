@@ -36,11 +36,15 @@ const pageData = reactive({
 const form = reactive<PaymentPayPayload>({
   paidAmount: 0,
   paymentMethod: 'CASH',
+  payerName: '',
+  paymentRemark: '',
 })
 
 const rules: FormRules<PaymentPayPayload> = {
   paidAmount: [{ required: true, message: '请输入实收金额', trigger: 'blur' }],
   paymentMethod: [{ required: true, message: '请选择收费方式', trigger: 'change' }],
+  payerName: [{ max: 100, message: '代缴人长度不能超过100', trigger: 'blur' }],
+  paymentRemark: [{ max: 255, message: '收费备注长度不能超过255', trigger: 'blur' }],
 }
 
 const paidCount = computed(() =>
@@ -48,7 +52,7 @@ const paidCount = computed(() =>
 )
 const isStudentView = computed(() => authStore.hasRole('STUDENT'))
 const payableCount = computed(() => pageData.list.filter((item) => item.paymentStatus === 'UNPAID').length)
-const pageTag = computed(() => (isStudentView.value ? '学员缴费视角' : '现场收费视角'))
+const pageTag = computed(() => (isStudentView.value ? '缴费办理' : '收费登记'))
 const pageTitle = computed(() => (isStudentView.value ? '我的缴费记录' : '收费管理'))
 const pageDescription = computed(() =>
   isStudentView.value
@@ -87,6 +91,8 @@ function openPayDialog(row: PaymentRecordView) {
   selectedRecord.value = row
   form.paidAmount = Number(row.receivableAmount ?? 0)
   form.paymentMethod = row.paymentType === 'CORPORATE' ? 'CORPORATE' : 'CASH'
+  form.payerName = row.payerName ?? ''
+  form.paymentRemark = row.paymentRemark ?? ''
   dialogVisible.value = true
 }
 
@@ -101,6 +107,8 @@ async function submitPay() {
     await payPayment(selectedRecord.value.id, {
       paidAmount: form.paidAmount,
       paymentMethod: form.paymentMethod,
+      payerName: form.payerName?.trim() || '',
+      paymentRemark: form.paymentRemark?.trim() || '',
     })
     ElMessage.success('收费已完成')
     dialogVisible.value = false
@@ -115,6 +123,8 @@ function handleDialogClosed() {
   selectedRecord.value = null
   form.paidAmount = 0
   form.paymentMethod = 'CASH'
+  form.payerName = ''
+  form.paymentRemark = ''
 }
 
 function formatTime(value: string | null) {
@@ -136,11 +146,20 @@ function paymentStatusText(value: string) {
   if (value === 'CORPORATE_PAID') {
     return '企业已登记'
   }
+  if (value === 'WAIVED') {
+    return '已免收'
+  }
   return '待收费'
 }
 
 function paymentStatusTagType(value: string) {
-  return value === 'UNPAID' ? 'warning' : 'success'
+  if (value === 'UNPAID') {
+    return 'warning'
+  }
+  if (value === 'WAIVED') {
+    return 'info'
+  }
+  return 'success'
 }
 
 onMounted(async () => {
@@ -184,6 +203,7 @@ onMounted(async () => {
           <el-option label="待收费" value="UNPAID" />
           <el-option label="已收费" value="PAID" />
           <el-option label="企业已登记" value="CORPORATE_PAID" />
+          <el-option label="已免收" value="WAIVED" />
         </el-select>
         <el-select v-model="query.courseId" clearable placeholder="课程筛选">
           <el-option
@@ -226,6 +246,8 @@ onMounted(async () => {
           </template>
         </el-table-column>
         <el-table-column prop="paymentMethod" label="收费方式" width="110" />
+        <el-table-column prop="payerName" label="代缴/登记方" min-width="150" show-overflow-tooltip />
+        <el-table-column prop="paymentRemark" label="收费备注" min-width="180" show-overflow-tooltip />
         <el-table-column prop="paidAt" label="收费时间" min-width="170">
           <template #default="{ row }">
             {{ formatTime(row.paidAt) }}
@@ -246,6 +268,8 @@ onMounted(async () => {
               {{
                 row.paymentStatus === 'UNPAID' && row.paymentType === 'CORPORATE'
                   ? '企业统一结算'
+                  : row.paymentStatus === 'WAIVED'
+                    ? '已登记免收'
                   : isStudentView
                     ? '已完成缴费'
                     : '已完成收费'
@@ -290,7 +314,22 @@ onMounted(async () => {
             <el-option label="现金" value="CASH" />
             <el-option label="转账" value="TRANSFER" />
             <el-option v-if="!isStudentView" label="企业登记" value="CORPORATE" />
+            <el-option v-if="!isStudentView" label="他人代缴" value="AGENT" />
+            <el-option v-if="!isStudentView" label="免收登记" value="WAIVED" />
           </el-select>
+        </el-form-item>
+        <el-form-item v-if="form.paymentMethod === 'AGENT'" label="代缴人" prop="payerName">
+          <el-input v-model="form.payerName" placeholder="请输入代缴人或代缴单位" />
+        </el-form-item>
+        <el-form-item label="收费备注" prop="paymentRemark">
+          <el-input
+            v-model="form.paymentRemark"
+            type="textarea"
+            :rows="4"
+            maxlength="255"
+            show-word-limit
+            placeholder="可记录免收原因、代缴说明或到账备注"
+          />
         </el-form-item>
       </el-form>
 

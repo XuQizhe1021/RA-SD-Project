@@ -1,12 +1,15 @@
 import http from './http'
 import type {
   ApiResponse,
+  ApplicationOptionRecord,
   AttendanceRecordView,
   CourseEvaluationReport,
   CourseEvaluationSummary,
+  CourseNoticeRecord,
   CourseOptionRecord,
   CourseRecord,
   CourseStatisticsRecord,
+  ExecutorStatisticsRecord,
   EvaluationCandidateRecord,
   EvaluationRecordView,
   EnrollmentRecord,
@@ -16,8 +19,10 @@ import type {
   PendingEvaluationCourse,
   PaymentRecordView,
   RevenueStatisticsResponse,
+  StudentProfileRecord,
   StudentOptionRecord,
   StudentStatisticsRecord,
+  TrainingApplicationRecord,
 } from '../types/api'
 
 export interface LecturerQuery {
@@ -43,6 +48,28 @@ export interface CourseQuery {
   keyword?: string
   status?: string
   lecturerId?: number | undefined
+}
+
+export interface ApplicationQuery {
+  pageNum: number
+  pageSize: number
+  keyword?: string
+  status?: string
+}
+
+export interface ApplicationPayload {
+  companyName: string
+  topic: string
+  expectedStartDate?: string
+  expectedEndDate?: string
+  attendeeCount: number
+  budgetAmount?: number | null
+  requirementDesc?: string
+}
+
+export interface ApplicationApprovePayload {
+  approved: boolean
+  approvalComment?: string
 }
 
 export interface CoursePayload {
@@ -86,6 +113,13 @@ export interface AttendanceQuery {
 
 export interface AttendanceCheckInPayload {
   remark?: string
+  materialStatus?: string
+  materialRemark?: string
+}
+
+export interface AttendanceMaterialPayload {
+  materialStatus: string
+  materialRemark?: string
 }
 
 export interface PaymentQuery {
@@ -99,6 +133,43 @@ export interface PaymentQuery {
 export interface PaymentPayPayload {
   paidAmount: number
   paymentMethod: string
+  payerName?: string
+  paymentRemark?: string
+}
+
+export interface StudentQuery {
+  pageNum: number
+  pageSize: number
+  keyword?: string
+  companyId?: number | undefined
+}
+
+export interface StudentPayload {
+  fullName: string
+  gender?: string
+  companyName: string
+  jobTitle?: string
+  educationLevel?: string
+  techLevel?: string
+  phone?: string
+  email?: string
+}
+
+export interface NoticeQuery {
+  pageNum: number
+  pageSize: number
+  keyword?: string
+  status?: string
+  courseId?: number | undefined
+}
+
+export interface NoticePayload {
+  courseId: number
+  title: string
+  content: string
+  registrationStartAt?: string
+  registrationEndAt?: string
+  externalPublishFlag?: boolean
 }
 
 export interface EvaluationSubmitPayload {
@@ -124,6 +195,22 @@ export interface StatisticsQuery {
 
 export async function fetchLecturerPage(params: LecturerQuery) {
   return (await http.get('/lecturers', { params })) as ApiResponse<PageResult<LecturerRecord>>
+}
+
+export async function fetchApplicationPage(params: ApplicationQuery) {
+  return (await http.get('/applications', { params })) as ApiResponse<PageResult<TrainingApplicationRecord>>
+}
+
+export async function createApplication(payload: ApplicationPayload) {
+  return (await http.post('/applications', payload)) as ApiResponse<TrainingApplicationRecord>
+}
+
+export async function approveApplication(id: number, payload: ApplicationApprovePayload) {
+  return (await http.post(`/applications/${id}/approve`, payload)) as ApiResponse<TrainingApplicationRecord>
+}
+
+export async function fetchApprovedApplicationOptions() {
+  return (await http.get('/applications/options/approved')) as ApiResponse<ApplicationOptionRecord[]>
 }
 
 export async function fetchLecturerOptions() {
@@ -186,12 +273,48 @@ export async function checkInAttendance(id: number, payload: AttendanceCheckInPa
   return (await http.post(`/attendance-records/${id}/check-in`, payload)) as ApiResponse<AttendanceRecordView>
 }
 
+export async function updateAttendanceMaterials(id: number, payload: AttendanceMaterialPayload) {
+  return (await http.post(`/attendance-records/${id}/materials`, payload)) as ApiResponse<AttendanceRecordView>
+}
+
 export async function fetchPaymentPage(params: PaymentQuery) {
   return (await http.get('/payments', { params })) as ApiResponse<PageResult<PaymentRecordView>>
 }
 
 export async function payPayment(id: number, payload: PaymentPayPayload) {
   return (await http.post(`/payments/${id}/pay`, payload)) as ApiResponse<PaymentRecordView>
+}
+
+export async function fetchStudentPage(params: StudentQuery) {
+  return (await http.get('/students', { params })) as ApiResponse<PageResult<StudentProfileRecord>>
+}
+
+export async function createStudent(payload: StudentPayload) {
+  return (await http.post('/students', payload)) as ApiResponse<StudentProfileRecord>
+}
+
+export async function updateStudent(id: number, payload: StudentPayload) {
+  return (await http.put(`/students/${id}`, payload)) as ApiResponse<StudentProfileRecord>
+}
+
+export async function fetchNoticePage(params: NoticeQuery) {
+  return (await http.get('/notices', { params })) as ApiResponse<PageResult<CourseNoticeRecord>>
+}
+
+export async function createNotice(payload: NoticePayload) {
+  return (await http.post('/notices', payload)) as ApiResponse<CourseNoticeRecord>
+}
+
+export async function updateNotice(id: number, payload: NoticePayload) {
+  return (await http.put(`/notices/${id}`, payload)) as ApiResponse<CourseNoticeRecord>
+}
+
+export async function publishNotice(id: number) {
+  return (await http.post(`/notices/${id}/publish`)) as ApiResponse<CourseNoticeRecord>
+}
+
+export async function revokeNotice(id: number) {
+  return (await http.post(`/notices/${id}/revoke`)) as ApiResponse<CourseNoticeRecord>
 }
 
 export async function fetchPendingEvaluationCourses() {
@@ -232,6 +355,10 @@ export async function fetchStudentStatistics(params: StatisticsQuery) {
 
 export async function fetchLecturerStatistics(params: StatisticsQuery) {
   return (await http.get('/statistics/lecturers', { params })) as ApiResponse<LecturerStatisticsRecord[]>
+}
+
+export async function fetchExecutorStatistics(params: StatisticsQuery) {
+  return (await http.get('/statistics/executors', { params })) as ApiResponse<ExecutorStatisticsRecord[]>
 }
 
 export async function fetchRevenueStatistics(params: StatisticsQuery) {

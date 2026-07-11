@@ -2,6 +2,7 @@ package com.hqtraining.backend.service;
 
 import com.hqtraining.backend.common.PageResult;
 import com.hqtraining.backend.dto.AttendanceCheckInRequest;
+import com.hqtraining.backend.dto.AttendanceMaterialRequest;
 import com.hqtraining.backend.model.AttendanceRecordView;
 import com.hqtraining.backend.model.CurrentUser;
 import org.springframework.http.HttpStatus;
@@ -34,6 +35,8 @@ public class AttendanceService {
             rs.getObject("checked_in_by", Long.class),
             rs.getString("checked_in_by_name"),
             rs.getString("remark"),
+            rs.getString("material_status"),
+            rs.getString("material_remark"),
             rs.getTimestamp("created_at").toLocalDateTime(),
             rs.getTimestamp("updated_at").toLocalDateTime()
     );
@@ -102,6 +105,8 @@ public class AttendanceService {
                     ar.checked_in_by,
                     COALESCE(u.display_name, '') AS checked_in_by_name,
                     ar.remark,
+                    ar.material_status,
+                    ar.material_remark,
                     ar.created_at,
                     ar.updated_at
                 FROM attendance_record ar
@@ -155,6 +160,8 @@ public class AttendanceService {
                     ar.checked_in_by,
                     COALESCE(u.display_name, '') AS checked_in_by_name,
                     ar.remark,
+                    ar.material_status,
+                    ar.material_remark,
                     ar.created_at,
                     ar.updated_at
                 FROM attendance_record ar
@@ -183,15 +190,18 @@ public class AttendanceService {
         }
 
         LocalDateTime now = LocalDateTime.now();
+        String materialStatus = normalizeMaterialStatus(request.materialStatus());
         int updatedRows = jdbcTemplate.update(
                 """
                 UPDATE attendance_record
-                SET status = 'CHECKED_IN', checked_in_at = ?, checked_in_by = ?, remark = ?, updated_at = ?
+                SET status = 'CHECKED_IN', checked_in_at = ?, checked_in_by = ?, remark = ?, material_status = ?, material_remark = ?, updated_at = ?
                 WHERE id = ?
                 """,
                 Timestamp.valueOf(now),
                 currentUser.id(),
                 emptyToNull(request.remark()),
+                materialStatus,
+                emptyToNull(request.materialRemark()),
                 Timestamp.valueOf(now),
                 id
         );
@@ -200,6 +210,28 @@ public class AttendanceService {
         }
 
         writeOperationLog(currentUser.id(), id, "ATTENDANCE", "CHECK_IN", "执行签到");
+        return getAttendanceRecordById(id, currentUser);
+    }
+
+    public AttendanceRecordView updateMaterials(Long id, AttendanceMaterialRequest request, CurrentUser currentUser) {
+        ensureSiteStaff(currentUser);
+        AttendanceRecordView existing = getAttendanceRecordById(id, currentUser);
+        ensureEnrollmentConfirmed(existing.enrollmentId());
+        String materialStatus = normalizeMaterialStatus(request.materialStatus());
+
+        jdbcTemplate.update(
+                """
+                UPDATE attendance_record
+                SET material_status = ?, material_remark = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                materialStatus,
+                emptyToNull(request.materialRemark()),
+                Timestamp.valueOf(LocalDateTime.now()),
+                id
+        );
+
+        writeOperationLog(currentUser.id(), id, "ATTENDANCE", "MATERIAL", "更新资料发放记录");
         return getAttendanceRecordById(id, currentUser);
     }
 
@@ -240,6 +272,18 @@ public class AttendanceService {
     private String normalizeLikeKeyword(String keyword) {
         String normalized = emptyToNull(keyword);
         return normalized == null ? null : "%" + normalized + "%";
+    }
+
+    private String normalizeMaterialStatus(String materialStatus) {
+        String normalized = emptyToNull(materialStatus);
+        if (normalized == null) {
+            return "PENDING";
+        }
+        String upperCase = normalized.toUpperCase();
+        if (!"PENDING".equals(upperCase) && !"ISSUED".equals(upperCase)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "资料发放状态仅支持 PENDING 或 ISSUED");
+        }
+        return upperCase;
     }
 
     private String emptyToNull(String value) {

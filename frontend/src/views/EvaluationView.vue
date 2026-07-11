@@ -80,12 +80,12 @@ const pageTitle = computed(() => {
 
 const pageTag = computed(() => {
   if (isStudentView.value) {
-    return '学员评价视角'
+    return '课程评价'
   }
   if (isStaffView.value) {
-    return '现场工作人员视角'
+    return '评价代录'
   }
-  return '经理 / 执行人视角'
+  return '评价汇总'
 })
 
 const pageDescription = computed(() => {
@@ -95,7 +95,7 @@ const pageDescription = computed(() => {
   if (isStaffView.value) {
     return '现场工作人员可为已签到但尚未提交评价的学员代录反馈，已提交记录会自动锁定，避免重复录入。'
   }
-  return '经理与执行人查看课程评价完成度、满意度均分和单课程反馈明细，为评审演示与后续优化提供依据。'
+  return '查看课程评价完成度、满意度均分和单课程反馈明细，用于持续跟踪课程反馈与服务质量。'
 })
 
 const totalCount = computed(() => {

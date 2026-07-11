@@ -14,6 +14,12 @@ public record PaymentPayRequest(
 
         @NotBlank(message = "收费方式不能为空")
         @Size(max = 30, message = "收费方式长度不能超过30")
-        String paymentMethod
+        String paymentMethod,
+
+        @Size(max = 100, message = "代缴人长度不能超过100")
+        String payerName,
+
+        @Size(max = 255, message = "收费备注长度不能超过255")
+        String paymentRemark
 ) {
 }

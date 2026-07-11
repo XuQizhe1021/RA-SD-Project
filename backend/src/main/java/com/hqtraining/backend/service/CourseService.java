@@ -45,10 +45,12 @@ public class CourseService {
 
     private final JdbcTemplate jdbcTemplate;
     private final LecturerService lecturerService;
+    private final ApplicationService applicationService;
 
-    public CourseService(JdbcTemplate jdbcTemplate, LecturerService lecturerService) {
+    public CourseService(JdbcTemplate jdbcTemplate, LecturerService lecturerService, ApplicationService applicationService) {
         this.jdbcTemplate = jdbcTemplate;
         this.lecturerService = lecturerService;
+        this.applicationService = applicationService;
     }
 
     public PageResult<CourseRecord> getCourses(
@@ -180,7 +182,7 @@ public class CourseService {
                     INSERT INTO course (
                         course_no, application_id, course_name, lecturer_id, executor_user_id, start_time, end_time, location,
                         quota, fee_amount, status, source_type, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', 'SYSTEM', ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?, ?, ?)
                     """,
                     Statement.RETURN_GENERATED_KEYS
             );
@@ -202,8 +204,9 @@ public class CourseService {
             statement.setString(8, request.location().trim());
             statement.setInt(9, request.quota());
             statement.setBigDecimal(10, request.feeAmount() == null ? BigDecimal.ZERO : request.feeAmount());
-            statement.setTimestamp(11, Timestamp.valueOf(now));
+            statement.setString(11, applicationId == null ? "SYSTEM" : "APPLICATION");
             statement.setTimestamp(12, Timestamp.valueOf(now));
+            statement.setTimestamp(13, Timestamp.valueOf(now));
             return statement;
         }, keyHolder);
 
@@ -211,6 +214,7 @@ public class CourseService {
         if (key == null) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "课程创建失败");
         }
+        applicationService.markApplicationCourseCreated(applicationId);
         return getCourseById(key.longValue(), currentUser);
     }
 
@@ -224,7 +228,7 @@ public class CourseService {
         int updatedRows = jdbcTemplate.update(
                 """
                 UPDATE course
-                SET application_id = ?, course_name = ?, lecturer_id = ?, start_time = ?, end_time = ?, location = ?, quota = ?, fee_amount = ?, updated_at = ?
+                SET application_id = ?, course_name = ?, lecturer_id = ?, start_time = ?, end_time = ?, location = ?, quota = ?, fee_amount = ?, source_type = ?, updated_at = ?
                 WHERE id = ?
                 """,
                 applicationId,
@@ -235,12 +239,17 @@ public class CourseService {
                 request.location().trim(),
                 request.quota(),
                 request.feeAmount() == null ? BigDecimal.ZERO : request.feeAmount(),
+                applicationId == null ? "SYSTEM" : "APPLICATION",
                 Timestamp.valueOf(LocalDateTime.now()),
                 existing.id()
         );
         if (updatedRows == 0) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "课程不存在");
         }
+        if (existing.applicationId() != null && !existing.applicationId().equals(applicationId)) {
+            applicationService.revertApplicationToApproved(existing.applicationId());
+        }
+        applicationService.markApplicationCourseCreated(applicationId);
         return getCourseById(id, currentUser);
     }
 
@@ -301,12 +310,12 @@ public class CourseService {
             return null;
         }
         Integer count = jdbcTemplate.queryForObject(
-                "SELECT COUNT(1) FROM training_application WHERE id = ?",
+                "SELECT COUNT(1) FROM training_application WHERE id = ? AND status IN ('APPROVED', 'COURSE_CREATED')",
                 Integer.class,
                 applicationId
         );
         if (count == null || count == 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "关联的培训申请不存在");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "关联的培训申请不存在或尚未审批通过");
         }
         return applicationId;
     }

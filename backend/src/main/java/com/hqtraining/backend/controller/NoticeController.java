@@ -2,16 +2,16 @@ package com.hqtraining.backend.controller;
 
 import com.hqtraining.backend.common.ApiResponse;
 import com.hqtraining.backend.common.PageResult;
-import com.hqtraining.backend.dto.AttendanceCheckInRequest;
-import com.hqtraining.backend.dto.AttendanceMaterialRequest;
-import com.hqtraining.backend.model.AttendanceRecordView;
+import com.hqtraining.backend.dto.NoticeSaveRequest;
+import com.hqtraining.backend.model.CourseNoticeRecord;
 import com.hqtraining.backend.model.CurrentUser;
 import com.hqtraining.backend.service.AuthService;
-import com.hqtraining.backend.service.AttendanceService;
+import com.hqtraining.backend.service.NoticeService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -19,19 +19,19 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/attendance-records")
-public class AttendanceController {
+@RequestMapping("/api/notices")
+public class NoticeController {
 
-    private final AttendanceService attendanceService;
+    private final NoticeService noticeService;
     private final AuthService authService;
 
-    public AttendanceController(AttendanceService attendanceService, AuthService authService) {
-        this.attendanceService = attendanceService;
+    public NoticeController(NoticeService noticeService, AuthService authService) {
+        this.noticeService = noticeService;
         this.authService = authService;
     }
 
     @GetMapping
-    public ApiResponse<PageResult<AttendanceRecordView>> list(
+    public ApiResponse<PageResult<CourseNoticeRecord>> list(
             @RequestParam(defaultValue = "1") int pageNum,
             @RequestParam(defaultValue = "10") int pageSize,
             @RequestParam(required = false) String keyword,
@@ -40,37 +40,52 @@ public class AttendanceController {
             @RequestHeader("Authorization") String authorizationHeader
     ) {
         CurrentUser currentUser = authService.requireCurrentUser(authorizationHeader);
-        return ApiResponse.success(
-                attendanceService.getAttendanceRecords(pageNum, pageSize, keyword, status, courseId, currentUser)
-        );
+        return ApiResponse.success(noticeService.getNotices(pageNum, pageSize, keyword, status, courseId, currentUser));
     }
 
     @GetMapping("/{id}")
-    public ApiResponse<AttendanceRecordView> detail(
+    public ApiResponse<CourseNoticeRecord> detail(
             @PathVariable Long id,
             @RequestHeader("Authorization") String authorizationHeader
     ) {
         CurrentUser currentUser = authService.requireCurrentUser(authorizationHeader);
-        return ApiResponse.success(attendanceService.getAttendanceRecordById(id, currentUser));
+        return ApiResponse.success(noticeService.getNoticeById(id, currentUser));
     }
 
-    @PostMapping("/{id}/check-in")
-    public ApiResponse<AttendanceRecordView> checkIn(
-            @PathVariable Long id,
-            @Valid @RequestBody AttendanceCheckInRequest request,
+    @PostMapping
+    public ApiResponse<CourseNoticeRecord> create(
+            @Valid @RequestBody NoticeSaveRequest request,
             @RequestHeader("Authorization") String authorizationHeader
     ) {
         CurrentUser currentUser = authService.requireCurrentUser(authorizationHeader);
-        return ApiResponse.success(attendanceService.checkIn(id, request, currentUser));
+        return ApiResponse.success(noticeService.createNotice(request, currentUser));
     }
 
-    @PostMapping("/{id}/materials")
-    public ApiResponse<AttendanceRecordView> updateMaterials(
+    @PutMapping("/{id}")
+    public ApiResponse<CourseNoticeRecord> update(
             @PathVariable Long id,
-            @Valid @RequestBody AttendanceMaterialRequest request,
+            @Valid @RequestBody NoticeSaveRequest request,
             @RequestHeader("Authorization") String authorizationHeader
     ) {
         CurrentUser currentUser = authService.requireCurrentUser(authorizationHeader);
-        return ApiResponse.success(attendanceService.updateMaterials(id, request, currentUser));
+        return ApiResponse.success(noticeService.updateNotice(id, request, currentUser));
+    }
+
+    @PostMapping("/{id}/publish")
+    public ApiResponse<CourseNoticeRecord> publish(
+            @PathVariable Long id,
+            @RequestHeader("Authorization") String authorizationHeader
+    ) {
+        CurrentUser currentUser = authService.requireCurrentUser(authorizationHeader);
+        return ApiResponse.success(noticeService.publishNotice(id, currentUser));
+    }
+
+    @PostMapping("/{id}/revoke")
+    public ApiResponse<CourseNoticeRecord> revoke(
+            @PathVariable Long id,
+            @RequestHeader("Authorization") String authorizationHeader
+    ) {
+        CurrentUser currentUser = authService.requireCurrentUser(authorizationHeader);
+        return ApiResponse.success(noticeService.revokeNotice(id, currentUser));
     }
 }

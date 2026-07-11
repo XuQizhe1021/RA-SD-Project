@@ -170,6 +170,8 @@ CREATE TABLE IF NOT EXISTS attendance_record (
     checked_in_at DATETIME,
     checked_in_by BIGINT,
     remark VARCHAR(255),
+    material_status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    material_remark VARCHAR(255),
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,
     CONSTRAINT fk_attendance_enrollment FOREIGN KEY (enrollment_id) REFERENCES enrollment(id),
@@ -189,6 +191,8 @@ CREATE TABLE IF NOT EXISTS payment_record (
     payment_status VARCHAR(20) NOT NULL DEFAULT 'UNPAID',
     paid_at DATETIME,
     handled_by BIGINT,
+    payer_name VARCHAR(100),
+    payment_remark VARCHAR(255),
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,
     CONSTRAINT fk_payment_enrollment FOREIGN KEY (enrollment_id) REFERENCES enrollment(id),
@@ -275,8 +279,29 @@ ON DUPLICATE KEY UPDATE created_at = VALUES(created_at);
 INSERT INTO customer_company (
     id, company_name, company_type, contact_person, contact_phone, contact_email, remark, created_at, updated_at
 ) VALUES
-(1, '未来软件科技有限公司', '软件企业', '王经理', '13600000001', 'wang@future-soft.com', '增量1演示客户', NOW(), NOW())
+(1, '未来软件科技有限公司', '软件企业', '王经理', '13600000001', 'wang@future-soft.com', '增量1演示客户', NOW(), NOW()),
+(2, '星河智造集团', '制造企业', '赵主管', '13600000002', 'zhao@star-manufacturing.com', '培训申请与通知演示客户', NOW(), NOW())
 ON DUPLICATE KEY UPDATE updated_at = NOW();
+
+INSERT INTO training_application (
+    id, application_no, company_id, applicant_user_id, topic, expected_start_date, expected_end_date, attendee_count,
+    budget_amount, requirement_desc, status, approval_comment, approved_by, approved_at, created_at, updated_at
+) VALUES
+(1, 'APP20260711001', 1, 1, 'Spring Boot 企业级开发实战', '2026-07-09', '2026-07-09', 60, 120000.00, '希望围绕 Spring Boot 企业级开发、接口设计和工程规范开展专项培训。', 'COURSE_CREATED', '申请已通过并进入建课执行。', 1, '2026-07-08 09:20:00', '2026-07-08 08:30:00', '2026-07-08 09:20:00'),
+(2, 'APP20260711002', 2, 1, '制造业数字化转型项目管理训练营', '2026-07-15', '2026-07-16', 45, 98000.00, '聚焦制造企业项目推进、跨部门协作与敏捷项目管理实践。', 'APPROVED', '预算与主题已确认，可安排执行人建课。', 1, '2026-07-11 09:10:00', '2026-07-11 08:40:00', '2026-07-11 09:10:00')
+ON DUPLICATE KEY UPDATE
+    company_id = VALUES(company_id),
+    topic = VALUES(topic),
+    expected_start_date = VALUES(expected_start_date),
+    expected_end_date = VALUES(expected_end_date),
+    attendee_count = VALUES(attendee_count),
+    budget_amount = VALUES(budget_amount),
+    requirement_desc = VALUES(requirement_desc),
+    status = VALUES(status),
+    approval_comment = VALUES(approval_comment),
+    approved_by = VALUES(approved_by),
+    approved_at = VALUES(approved_at),
+    updated_at = VALUES(updated_at);
 
 INSERT INTO student_profile (
     id, user_id, student_no, full_name, gender, company_id, job_title, education_level, tech_level, phone, email, created_at, updated_at
@@ -313,7 +338,7 @@ ON DUPLICATE KEY UPDATE
 INSERT INTO course (
     id, course_no, application_id, course_name, lecturer_id, executor_user_id, start_time, end_time, location, quota, fee_amount, status, attachment_path, source_type, created_at, updated_at
 ) VALUES
-(1, 'CRS20260708001', NULL, 'Spring Boot 企业级开发实战', 1, 2, '2026-07-09 09:00:00', '2026-07-09 17:30:00', '未来技术学院 A301', 60, 1999.00, 'DRAFT', NULL, 'SYSTEM', NOW(), NOW()),
+(1, 'CRS20260708001', 1, 'Spring Boot 企业级开发实战', 1, 2, '2026-07-09 09:00:00', '2026-07-09 17:30:00', '未来技术学院 A301', 60, 1999.00, 'PUBLISHED', NULL, 'APPLICATION', NOW(), NOW()),
 (2, 'CRS20260708002', NULL, 'Scrum 冲刺管理与实践', 2, 2, '2026-07-10 13:30:00', '2026-07-10 18:00:00', '未来技术学院 B201', 45, 1299.00, 'FINISHED', NULL, 'SYSTEM', NOW(), NOW())
 ON DUPLICATE KEY UPDATE
     application_id = VALUES(application_id),
@@ -332,7 +357,8 @@ ON DUPLICATE KEY UPDATE
 INSERT INTO course_notice (
     id, course_id, title, content, registration_start_at, registration_end_at, status, published_at, external_publish_flag, created_by, created_at, updated_at
 ) VALUES
-(1, 2, 'Scrum 冲刺管理与实践开班通知', '课程已开放报名，请相关学员尽快提交报名。', '2026-07-08 08:00:00', '2026-07-10 12:00:00', 'PUBLISHED', NOW(), 0, 2, NOW(), NOW())
+(1, 1, 'Spring Boot 企业级开发实战开班通知', '课程已确认开班，请相关学员根据通知完成报名与现场准备。', '2026-07-08 08:00:00', '2026-07-09 08:30:00', 'PUBLISHED', '2026-07-08 10:00:00', 1, 2, NOW(), NOW()),
+(2, 2, 'Scrum 冲刺管理与实践开班通知', '课程已开放报名，请相关学员尽快提交报名。', '2026-07-08 08:00:00', '2026-07-10 12:00:00', 'PUBLISHED', '2026-07-09 09:30:00', 0, 2, NOW(), NOW())
 ON DUPLICATE KEY UPDATE
     title = VALUES(title),
     content = VALUES(content),
@@ -356,22 +382,24 @@ ON DUPLICATE KEY UPDATE
     updated_at = VALUES(updated_at);
 
 INSERT INTO attendance_record (
-    id, enrollment_id, course_id, student_id, status, checked_in_at, checked_in_by, remark, created_at, updated_at
+    id, enrollment_id, course_id, student_id, status, checked_in_at, checked_in_by, remark, material_status, material_remark, created_at, updated_at
 ) VALUES
-(1, 1, 2, 1, 'CHECKED_IN', '2026-07-10 13:20:00', 3, '已完成现场签到', '2026-07-10 10:00:00', '2026-07-10 13:20:00'),
-(2, 2, 2, 2, 'CHECKED_IN', '2026-07-10 13:25:00', 3, '企业学员签到完成', '2026-07-10 10:05:00', '2026-07-10 13:25:00')
+(1, 1, 2, 1, 'CHECKED_IN', '2026-07-10 13:20:00', 3, '已完成现场签到', 'ISSUED', '已领取培训讲义与课程资料袋', '2026-07-10 10:00:00', '2026-07-10 13:20:00'),
+(2, 2, 2, 2, 'CHECKED_IN', '2026-07-10 13:25:00', 3, '企业学员签到完成', 'PENDING', '资料待课程中场统一发放', '2026-07-10 10:05:00', '2026-07-10 13:25:00')
 ON DUPLICATE KEY UPDATE
     status = VALUES(status),
     checked_in_at = VALUES(checked_in_at),
     checked_in_by = VALUES(checked_in_by),
     remark = VALUES(remark),
+    material_status = VALUES(material_status),
+    material_remark = VALUES(material_remark),
     updated_at = VALUES(updated_at);
 
 INSERT INTO payment_record (
-    id, enrollment_id, course_id, student_id, receivable_amount, paid_amount, payment_method, payment_status, paid_at, handled_by, created_at, updated_at
+    id, enrollment_id, course_id, student_id, receivable_amount, paid_amount, payment_method, payment_status, paid_at, handled_by, payer_name, payment_remark, created_at, updated_at
 ) VALUES
-(1, 1, 2, 1, 1299.00, 1299.00, 'CASH', 'PAID', '2026-07-10 13:35:00', 3, '2026-07-10 10:00:00', '2026-07-10 13:35:00'),
-(2, 2, 2, 2, 1299.00, 1299.00, 'CORPORATE', 'CORPORATE_PAID', '2026-07-10 13:40:00', 3, '2026-07-10 10:05:00', '2026-07-10 13:40:00')
+(1, 1, 2, 1, 1299.00, 1299.00, 'CASH', 'PAID', '2026-07-10 13:35:00', 3, NULL, '现场现金收费，已核对学员信息', '2026-07-10 10:00:00', '2026-07-10 13:35:00'),
+(2, 2, 2, 2, 1299.00, 1299.00, 'CORPORATE', 'CORPORATE_PAID', '2026-07-10 13:40:00', 3, '未来软件科技有限公司', '企业统一结算，现场已登记到账信息', '2026-07-10 10:05:00', '2026-07-10 13:40:00')
 ON DUPLICATE KEY UPDATE
     receivable_amount = VALUES(receivable_amount),
     paid_amount = VALUES(paid_amount),
@@ -379,6 +407,8 @@ ON DUPLICATE KEY UPDATE
     payment_status = VALUES(payment_status),
     paid_at = VALUES(paid_at),
     handled_by = VALUES(handled_by),
+    payer_name = VALUES(payer_name),
+    payment_remark = VALUES(payment_remark),
     updated_at = VALUES(updated_at);
 
 INSERT INTO course_evaluation (

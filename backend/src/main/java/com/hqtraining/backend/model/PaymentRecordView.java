@@ -22,6 +22,8 @@ public record PaymentRecordView(
         LocalDateTime paidAt,
         Long handledBy,
         String handledByName,
+        String payerName,
+        String paymentRemark,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {

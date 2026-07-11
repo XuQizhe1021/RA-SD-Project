@@ -17,32 +17,32 @@ const roleNameMap: Record<string, string> = {
 const heroContent = computed(() => {
   if (primaryRole.value === 'MANAGER') {
     return {
-      tag: '经理工作台',
+      tag: '首页概览',
       title: '关注培训申请、课程计划和经营统计',
-      description: '当前视角聚焦申请审批、课程执行概览与培训经营结果，适合快速判断培训项目是否按计划推进。',
+      description: '围绕培训申请处理、课程推进情况和统计结果查看整体业务运行状态。',
       alert: '经理可查看课程与讲师资源情况，并在培训申请、统计报表模块跟踪整体经营表现。',
     }
   }
   if (primaryRole.value === 'EXECUTOR') {
     return {
-      tag: '执行人工作台',
+      tag: '首页概览',
       title: '负责课程落地、讲师协调、通知发布与报名审核',
-      description: '当前视角覆盖增量1主闭环中的运营执行环节，重点关注课程、讲师、学员、通知和报名流转。',
+      description: '围绕课程、讲师、学员、通知和报名流转组织培训执行工作。',
       alert: '执行人是培训主流程的核心协调角色，需持续跟进报名审核、开课提醒与现场交接。',
     }
   }
   if (primaryRole.value === 'SITE_STAFF') {
     return {
-      tag: '现场工作台',
+      tag: '首页概览',
       title: '聚焦签到、收费与培训现场支持',
-      description: '当前视角只保留现场执行相关模块，确保签到名单、收费记录与培训结束后的评价回收链路清晰。',
+      description: '围绕培训当天的签到、收费和现场收尾工作开展处理与核验。',
       alert: '现场工作人员负责培训当日到场核验、资料发放、收费登记与评价回收。',
     }
   }
   return {
-    tag: '学员工作台',
+    tag: '首页概览',
     title: '查看通知、提交报名、完成缴费与课程评价',
-    description: '当前视角只展示学员可参与的功能入口，帮助学员沿着通知浏览、报名、缴费、评价的顺序完成培训流程。',
+    description: '围绕通知浏览、报名、缴费和评价提交完成个人培训参与流程。',
     alert: '学员仅可查看和操作自己的报名及缴费记录，不再接触后台审核类操作。',
   }
 })
@@ -52,7 +52,7 @@ const stats = computed(() => {
     {
       title: '当前登录角色',
       value: roleNameMap[primaryRole.value] ?? '未识别',
-      description: '系统按角色返回菜单并限制可访问路由',
+      description: '系统会根据账号职责开放对应菜单与业务功能。',
     },
     {
       title: '当前开放模块',
@@ -132,6 +132,19 @@ const milestones = computed(() => {
   }
   return ['浏览已发布的培训通知', '提交并跟踪自己的报名记录', '完成缴费并在培训结束后提交评价']
 })
+
+const guidanceItems = computed(() => {
+  if (primaryRole.value === 'MANAGER') {
+    return ['通过培训申请跟踪需求受理情况', '通过课程与讲师信息判断资源配置', '通过统计报表查看经营结果和执行进展']
+  }
+  if (primaryRole.value === 'EXECUTOR') {
+    return ['优先维护课程、讲师和学员基础数据', '及时发布通知并处理报名审核', '培训前与现场工作人员核对签到和收费准备情况']
+  }
+  if (primaryRole.value === 'SITE_STAFF') {
+    return ['按已确认报名名单执行签到', '根据收费记录完成现场收费登记', '培训结束后协助整理评价反馈']
+  }
+  return ['先查看通知，再按课程安排提交报名', '报名确认后关注缴费状态', '培训结束后及时提交课程评价']
+})
 </script>
 
 <template>
@@ -160,7 +173,7 @@ const milestones = computed(() => {
 
     <section class="bottom-grid">
       <article class="page-card plan-card">
-        <div class="section-title">当前角色职责</div>
+        <div class="section-title">业务处理重点</div>
         <el-timeline>
           <el-timeline-item v-for="milestone in milestones" :key="milestone" type="primary">
             {{ milestone }}
@@ -169,14 +182,12 @@ const milestones = computed(() => {
       </article>
 
       <article class="page-card account-card">
-        <div class="section-title">账号与权限说明</div>
-        <el-descriptions :column="1" border>
-          <el-descriptions-item label="经理">manager01 / 123456</el-descriptions-item>
-          <el-descriptions-item label="执行人">executor01 / 123456</el-descriptions-item>
-          <el-descriptions-item label="现场工作人员">staff01 / 123456</el-descriptions-item>
-          <el-descriptions-item label="学员">student01 / 123456</el-descriptions-item>
-          <el-descriptions-item label="说明">各角色仅保留自身职责范围内的菜单与页面操作</el-descriptions-item>
-        </el-descriptions>
+        <div class="section-title">使用说明</div>
+        <el-timeline>
+          <el-timeline-item v-for="item in guidanceItems" :key="item" type="success">
+            {{ item }}
+          </el-timeline-item>
+        </el-timeline>
       </article>
     </section>
   </div>

@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { Check, EditPen, Plus, Search } from '@element-plus/icons-vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 
 import {
   createCourse,
+  fetchApprovedApplicationOptions,
   fetchCoursePage,
   fetchLecturerOptions,
   publishCourse,
@@ -13,15 +15,17 @@ import {
 } from '../api/training'
 import { getErrorMessage } from '../api/http'
 import { useAuthStore } from '../stores/auth'
-import type { CourseRecord, LecturerRecord } from '../types/api'
+import type { ApplicationOptionRecord, CourseRecord, LecturerRecord } from '../types/api'
 
 const authStore = useAuthStore()
+const route = useRoute()
 const loading = ref(false)
 const dialogVisible = ref(false)
 const submitting = ref(false)
 const formRef = ref<FormInstance>()
 const editingId = ref<number | null>(null)
 const lecturerOptions = ref<LecturerRecord[]>([])
+const applicationOptions = ref<ApplicationOptionRecord[]>([])
 
 const query = reactive({
   pageNum: 1,
@@ -56,17 +60,26 @@ const rules: FormRules<CoursePayload> = {
 
 const publishedCount = computed(() => pageData.list.filter((item) => item.status === 'PUBLISHED').length)
 const isManagerView = computed(() => authStore.hasRole('MANAGER'))
-const pageTag = computed(() => (isManagerView.value ? '经理查看视角' : '执行人维护视角'))
+const pageTag = computed(() => (isManagerView.value ? '课程总览' : '课程维护'))
 const pageTitle = computed(() => (isManagerView.value ? '课程执行总览' : '课程管理'))
 const pageDescription = computed(() =>
   isManagerView.value
     ? '经理可查看课程计划、讲师安排与发布进度，用于掌握培训项目执行情况，但不直接修改课程数据。'
-    : '执行人负责新增、编辑和发布课程，为通知发布、报名审核、签到收费等后续流程提供基础数据。',
+    : '执行人负责新增、编辑和发布课程，并可直接承接审批通过的培训申请，继续推进通知、报名和现场执行流程。',
 )
 
 async function loadLecturerOptions() {
   const response = await fetchLecturerOptions()
   lecturerOptions.value = response.data
+}
+
+async function loadApplicationOptions() {
+  if (isManagerView.value) {
+    applicationOptions.value = []
+    return
+  }
+  const response = await fetchApprovedApplicationOptions()
+  applicationOptions.value = response.data
 }
 
 async function loadData() {
@@ -100,6 +113,7 @@ function resetForm() {
 
 function openCreateDialog() {
   resetForm()
+  applyRouteApplicationPreset()
   dialogVisible.value = true
 }
 
@@ -114,6 +128,21 @@ function openEditDialog(row: CourseRecord) {
   form.quota = row.quota
   form.feeAmount = Number(row.feeAmount ?? 0)
   dialogVisible.value = true
+}
+
+function applyRouteApplicationPreset() {
+  const routeApplicationId = Number(route.query.applicationId ?? 0)
+  if (!routeApplicationId) {
+    return
+  }
+  const matchedApplication = applicationOptions.value.find((item) => item.id === routeApplicationId)
+  if (!matchedApplication) {
+    return
+  }
+  form.applicationId = matchedApplication.id
+  form.courseName = matchedApplication.topic
+  form.quota = matchedApplication.attendeeCount
+  form.feeAmount = Number(matchedApplication.budgetAmount ?? 0)
 }
 
 async function submitForm() {
@@ -165,8 +194,17 @@ function formatMoney(value: number) {
 }
 
 onMounted(async () => {
-  await Promise.all([loadLecturerOptions(), loadData()])
+  await Promise.all([loadLecturerOptions(), loadApplicationOptions(), loadData()])
 })
+
+watch(
+  () => route.query.applicationId,
+  () => {
+    if (!editingId.value && dialogVisible.value) {
+      applyRouteApplicationPreset()
+    }
+  },
+)
 </script>
 
 <template>
@@ -260,7 +298,7 @@ onMounted(async () => {
               >
                 发布
               </el-button>
-              <span v-if="isManagerView" class="handled-text">经理仅查看课程执行情况</span>
+              <span v-if="isManagerView" class="handled-text">当前账号可查看课程执行情况</span>
             </div>
           </template>
         </el-table-column>
@@ -294,9 +332,16 @@ onMounted(async () => {
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="来源申请ID（可选）">
-              <el-input-number v-model="form.applicationId" :min="1" :value-on-clear="null" controls-position="right" style="width: 100%" />
-              <div class="field-hint">可留空；如填写，需为系统中已存在的培训申请 ID。</div>
+            <el-form-item label="来源申请">
+              <el-select v-model="form.applicationId" clearable placeholder="可选择已审批申请" style="width: 100%">
+                <el-option
+                  v-for="application in applicationOptions"
+                  :key="application.id"
+                  :label="`${application.topic} / ${application.companyName} / ${application.applicationNo}`"
+                  :value="application.id"
+                />
+              </el-select>
+              <div class="field-hint">选择申请后会自动带入主题、人数和预算，可继续按建课需要微调。</div>
             </el-form-item>
           </el-col>
         </el-row>
