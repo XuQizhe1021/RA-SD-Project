@@ -342,6 +342,8 @@ public class EnrollmentService {
                     COALESCE(s.email, '') AS email
                 FROM student_profile s
                 LEFT JOIN customer_company cc ON s.company_id = cc.id
+                LEFT JOIN user_account ua ON s.user_id = ua.id
+                WHERE s.user_id IS NULL OR ua.account_status = 'ACTIVE'
                 ORDER BY s.full_name ASC, s.id ASC
                 """,
                 STUDENT_OPTION_ROW_MAPPER
@@ -422,7 +424,9 @@ public class EnrollmentService {
                     COALESCE(s.email, '') AS email
                 FROM student_profile s
                 LEFT JOIN customer_company cc ON s.company_id = cc.id
+                LEFT JOIN user_account ua ON s.user_id = ua.id
                 WHERE s.id = ?
+                  AND (s.user_id IS NULL OR ua.account_status = 'ACTIVE')
                 """,
                 STUDENT_OPTION_ROW_MAPPER,
                 studentId

@@ -117,6 +117,40 @@ export interface StudentProfileRecord {
   updatedAt: string
 }
 
+export interface RegistrationReviewRecord {
+  userId: number
+  username: string
+  displayName: string
+  phone: string
+  email: string
+  companyName: string
+  jobTitle: string
+  educationLevel: string
+  techLevel: string
+  accountStatus: string
+  reviewerName: string
+  reviewComment: string
+  createdAt: string
+  reviewedAt: string | null
+}
+
+export interface ManagedAccountRecord {
+  userId: number
+  username: string
+  displayName: string
+  phone: string
+  email: string
+  accountType: string
+  roleCode: string
+  roleName: string
+  accountStatus: string
+  reviewerName: string
+  reviewComment: string
+  createdAt: string
+  reviewedAt: string | null
+  lastLoginAt: string | null
+}
+
 export interface EnrollmentRecord {
   id: number
   enrollmentNo: string

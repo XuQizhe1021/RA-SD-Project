@@ -3,8 +3,11 @@ package com.hqtraining.backend.controller;
 import com.hqtraining.backend.common.ApiResponse;
 import com.hqtraining.backend.dto.LoginRequest;
 import com.hqtraining.backend.dto.LoginResponse;
+import com.hqtraining.backend.dto.StudentRegisterRequest;
 import com.hqtraining.backend.dto.UserInfoResponse;
 import com.hqtraining.backend.model.MenuItem;
+import com.hqtraining.backend.model.RegistrationReviewRecord;
+import com.hqtraining.backend.service.AccountService;
 import com.hqtraining.backend.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,14 +24,21 @@ import java.util.List;
 public class AuthController {
 
     private final AuthService authService;
+    private final AccountService accountService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, AccountService accountService) {
         this.authService = authService;
+        this.accountService = accountService;
     }
 
     @PostMapping("/login")
     public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         return ApiResponse.success(authService.login(request.username(), request.password()));
+    }
+
+    @PostMapping("/register/student")
+    public ApiResponse<RegistrationReviewRecord> registerStudent(@Valid @RequestBody StudentRegisterRequest request) {
+        return ApiResponse.success(accountService.registerStudent(request));
     }
 
     @GetMapping("/me")

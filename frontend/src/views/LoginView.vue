@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { Lock, User } from '@element-plus/icons-vue'
+import { ArrowRight, Lock, User } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+import { getErrorMessage } from '../api/http'
 import { useAuthStore } from '../stores/auth'
 
 const authStore = useAuthStore()
@@ -16,29 +17,28 @@ const form = reactive({
   password: '',
 })
 
-const quickAccounts = [
-  { label: '经理', username: 'manager01' },
-  { label: '执行人', username: 'executor01' },
-  { label: '现场工作人员', username: 'staff01' },
-  { label: '学员', username: 'student01' },
-]
-
 async function handleLogin() {
   loading.value = true
   try {
     await authStore.login(form)
     const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/dashboard'
     router.push(redirect)
-  } catch {
-    ElMessage.error('登录失败，请检查账号密码')
+  } catch (error) {
+    ElMessage.error(getErrorMessage(error, '登录失败，请检查账号信息'))
   } finally {
     loading.value = false
   }
 }
 
-function fillAccount(username: string) {
-  form.username = username
+function goToRegister() {
+  router.push('/register/student')
 }
+
+onMounted(() => {
+  if (typeof route.query.username === 'string') {
+    form.username = route.query.username
+  }
+})
 </script>
 
 <template>
@@ -65,7 +65,7 @@ function fillAccount(username: string) {
     <div class="login-card page-card">
       <div class="card-header">
         <h2>系统登录</h2>
-        <span>请输入账号和密码后登录系统。</span>
+        <span>请输入账号和密码后登录系统；如尚未开通学员账号，可先提交注册申请。</span>
       </div>
       <el-form label-position="top" @submit.prevent="handleLogin">
         <el-form-item label="账号">
@@ -92,19 +92,9 @@ function fillAccount(username: string) {
         </el-button>
       </el-form>
 
-      <div class="quick-panel">
-        <div class="quick-title">常用账号</div>
-        <div class="quick-list">
-          <el-tag
-            v-for="account in quickAccounts"
-            :key="account.username"
-            class="quick-tag"
-            effect="plain"
-            @click="fillAccount(account.username)"
-          >
-            {{ account.label }}
-          </el-tag>
-        </div>
+      <div class="register-panel">
+        <div class="register-title">还没有账号？</div>
+        <el-button text type="primary" :icon="ArrowRight" @click="goToRegister">前往学员注册</el-button>
       </div>
     </div>
   </div>
@@ -191,24 +181,17 @@ p {
   margin-top: 10px;
 }
 
-.quick-panel {
+.register-panel {
   margin-top: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.quick-title {
-  margin-bottom: 12px;
+.register-title {
   font-size: 14px;
   color: #475569;
-}
-
-.quick-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.quick-tag {
-  cursor: pointer;
 }
 
 @media (max-width: 1024px) {

@@ -8,6 +8,7 @@ import {
   Money,
   Reading,
   School,
+  Setting,
   Ticket,
   User,
   UserFilled,
@@ -22,6 +23,7 @@ const route = useRoute()
 const router = useRouter()
 
 const roleNameMap: Record<string, string> = {
+  ADMIN: '系统管理员',
   MANAGER: '经理',
   EXECUTOR: '执行人',
   SITE_STAFF: '现场工作人员',
@@ -40,12 +42,14 @@ const iconMap = {
   Money,
   DataAnalysis,
   School,
+  Setting,
 }
 
 const activeMenu = computed(() => route.path)
 
 const titleMap: Record<string, string> = {
   '/dashboard': '首页概览',
+  '/accounts': '账号管理',
   '/applications': '培训申请',
   '/courses': '课程管理',
   '/lecturers': '讲师管理',
@@ -61,6 +65,9 @@ const titleMap: Record<string, string> = {
 const currentTitle = computed(() => titleMap[route.path] ?? 'HQ技术培训管理系统')
 const currentRoleName = computed(() => roleNameMap[authStore.primaryRole] ?? authStore.primaryRole)
 const topbarMeta = computed(() => {
+  if (authStore.hasRole('ADMIN')) {
+    return '负责账号创建、注册审核与系统账户维护工作。'
+  }
   if (authStore.hasRole('MANAGER')) {
     return '聚焦培训申请审批、课程计划跟踪与经营统计分析。'
   }

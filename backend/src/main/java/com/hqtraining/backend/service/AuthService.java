@@ -47,9 +47,7 @@ public class AuthService {
         if (account == null || !passwordEncoder.matches(password, account.passwordHash())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "账号或密码错误");
         }
-        if (!"ACTIVE".equals(account.accountStatus())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "当前账号已停用");
-        }
+        ensureAccountActive(account);
 
         String token = jwtTokenProvider.generateToken(account.id(), account.username(), account.roles());
         updateLastLoginAt(account.id());
@@ -62,6 +60,13 @@ public class AuthService {
 
     public List<MenuItem> getMenus(String authorizationHeader) {
         CurrentUser currentUser = requireCurrentUser(authorizationHeader);
+
+        if (currentUser.hasRole("ADMIN")) {
+            return List.of(
+                    new MenuItem("首页概览", "/dashboard", "HomeFilled"),
+                    new MenuItem("账号管理", "/accounts", "Setting")
+            );
+        }
 
         if (currentUser.hasRole("MANAGER")) {
             return List.of(
@@ -77,6 +82,7 @@ public class AuthService {
         if (currentUser.hasRole("EXECUTOR")) {
             return List.of(
                     new MenuItem("首页概览", "/dashboard", "HomeFilled"),
+                    new MenuItem("账号管理", "/accounts", "Setting"),
                     new MenuItem("培训申请", "/applications", "EditPen"),
                     new MenuItem("课程管理", "/courses", "Reading"),
                     new MenuItem("讲师管理", "/lecturers", "UserFilled"),
@@ -145,9 +151,7 @@ public class AuthService {
         if (account == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "用户不存在");
         }
-        if (!"ACTIVE".equals(account.accountStatus())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "当前账号已停用");
-        }
+        ensureAccountActive(account);
         return account;
     }
 
@@ -197,6 +201,19 @@ public class AuthService {
                 "UPDATE user_account SET last_login_at = NOW(), updated_at = NOW() WHERE id = ?",
                 userId
         );
+    }
+
+    private void ensureAccountActive(UserAccount account) {
+        if ("ACTIVE".equals(account.accountStatus())) {
+            return;
+        }
+        if ("PENDING".equals(account.accountStatus())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "账号正在审核中，请等待审核通过后再登录");
+        }
+        if ("REJECTED".equals(account.accountStatus())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "账号申请未通过，请联系管理员处理");
+        }
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "当前账号已停用");
     }
 
     private UserInfoResponse toUserInfo(UserAccount account) {

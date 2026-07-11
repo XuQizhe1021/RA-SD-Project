@@ -8,6 +8,7 @@ const authStore = useAuthStore()
 const primaryRole = computed(() => authStore.primaryRole)
 
 const roleNameMap: Record<string, string> = {
+  ADMIN: '系统管理员',
   MANAGER: '经理',
   EXECUTOR: '执行人',
   SITE_STAFF: '现场工作人员',
@@ -17,6 +18,14 @@ const roleNameMap: Record<string, string> = {
 const displayName = computed(() => authStore.user?.displayName || roleNameMap[primaryRole.value] || '用户')
 
 const heroContent = computed(() => {
+  if (primaryRole.value === 'ADMIN') {
+    return {
+      tag: '首页概览',
+      title: '统一维护系统账号与注册审核',
+      description: '围绕账号开通、注册审核和岗位权限分配保障系统稳定运行。',
+      alert: `欢迎回来，${displayName.value}！您可在此审核注册申请并维护内部账号。`,
+    }
+  }
   if (primaryRole.value === 'MANAGER') {
     return {
       tag: '首页概览',
@@ -62,6 +71,21 @@ const stats = computed(() => {
       description: authStore.menus.map((item) => item.name).join(' / '),
     },
   ]
+
+  if (primaryRole.value === 'ADMIN') {
+    return baseStats.concat([
+      {
+        title: '核心职责',
+        value: '账号审核',
+        description: '及时处理学员注册申请，保障账号开通流程顺畅',
+      },
+      {
+        title: '维护重点',
+        value: '内部账号',
+        description: '按岗位职责创建并维护管理与现场岗位账号',
+      },
+    ])
+  }
 
   if (primaryRole.value === 'MANAGER') {
     return baseStats.concat([
@@ -123,6 +147,9 @@ const stats = computed(() => {
 })
 
 const milestones = computed(() => {
+  if (primaryRole.value === 'ADMIN') {
+    return ['审核学员注册申请', '开通内部岗位账号', '维护系统账号状态与访问范围']
+  }
   if (primaryRole.value === 'MANAGER') {
     return ['查看培训申请处理进度', '查看课程与讲师准备情况', '在统计报表中跟踪经营结果']
   }
@@ -136,6 +163,9 @@ const milestones = computed(() => {
 })
 
 const guidanceItems = computed(() => {
+  if (primaryRole.value === 'ADMIN') {
+    return ['优先处理待审核学员账号', '按岗位需要创建管理与现场账号', '定期核对系统账号状态与使用情况']
+  }
   if (primaryRole.value === 'MANAGER') {
     return ['通过培训申请跟踪需求受理情况', '通过课程与讲师信息判断资源配置', '通过统计报表查看经营结果和执行进展']
   }

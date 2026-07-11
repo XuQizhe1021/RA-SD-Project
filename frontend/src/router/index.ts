@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 import AppLayout from '../layout/AppLayout.vue'
 import ApplicationsView from '../views/ApplicationsView.vue'
+import AccountsView from '../views/AccountsView.vue'
 import AttendanceView from '../views/AttendanceView.vue'
 import { useAuthStore } from '../stores/auth'
 import CoursesView from '../views/CoursesView.vue'
@@ -12,6 +13,7 @@ import LecturersView from '../views/LecturersView.vue'
 import LoginView from '../views/LoginView.vue'
 import NoticesView from '../views/NoticesView.vue'
 import PaymentsView from '../views/PaymentsView.vue'
+import RegisterStudentView from '../views/RegisterStudentView.vue'
 import StatisticsView from '../views/StatisticsView.vue'
 import StudentsView from '../views/StudentsView.vue'
 
@@ -23,6 +25,12 @@ const router = createRouter({
       name: 'login',
       component: LoginView,
       meta: { public: true, title: '系统登录' },
+    },
+    {
+      path: '/register/student',
+      name: 'register-student',
+      component: RegisterStudentView,
+      meta: { public: true, title: '学员注册' },
     },
     {
       path: '/',
@@ -37,6 +45,12 @@ const router = createRouter({
           name: 'dashboard',
           component: HomeView,
           meta: { title: '首页概览' },
+        },
+        {
+          path: 'accounts',
+          name: 'accounts',
+          component: AccountsView,
+          meta: { title: '账号管理' },
         },
         {
           path: 'applications',

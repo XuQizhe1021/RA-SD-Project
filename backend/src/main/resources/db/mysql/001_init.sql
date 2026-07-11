@@ -19,10 +19,14 @@ CREATE TABLE IF NOT EXISTS user_account (
     email VARCHAR(100),
     phone VARCHAR(30),
     account_type VARCHAR(30) NOT NULL,
-    account_status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+    account_status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    review_comment VARCHAR(255),
+    reviewed_by BIGINT,
+    reviewed_at DATETIME,
     last_login_at DATETIME,
     created_at DATETIME NOT NULL,
-    updated_at DATETIME NOT NULL
+    updated_at DATETIME NOT NULL,
+    CONSTRAINT fk_user_account_reviewer FOREIGN KEY (reviewed_by) REFERENCES user_account(id)
 );
 
 CREATE TABLE IF NOT EXISTS user_role (
@@ -248,17 +252,21 @@ INSERT INTO role (id, role_code, role_name, description, created_at, updated_at)
 (1, 'MANAGER', '经理', '审批申请、查看统计', NOW(), NOW()),
 (2, 'EXECUTOR', '执行人', '负责课程、通知、报名审核', NOW(), NOW()),
 (3, 'SITE_STAFF', '现场工作人员', '负责签到与收费', NOW(), NOW()),
-(4, 'STUDENT', '学员', '负责报名与评价', NOW(), NOW())
+(4, 'STUDENT', '学员', '负责报名与评价', NOW(), NOW()),
+(5, 'ADMIN', '系统管理员', '负责账号创建、审核与维护', NOW(), NOW())
 ON DUPLICATE KEY UPDATE updated_at = NOW();
 
 INSERT INTO user_account (
-    id, username, password_hash, display_name, email, phone, account_type, account_status, last_login_at, created_at, updated_at
+    id, username, password_hash, display_name, email, phone, account_type, account_status,
+    review_comment, reviewed_by, reviewed_at, last_login_at, created_at, updated_at
 ) VALUES
-(1, 'manager01', '$2a$10$r7ThwTGHfF7oaTcQ9lT7UO0deo9JdyWFM8kwVu9xWS.DtQrDoahH.', '培训经理', 'manager@hq.local', '13800000001', 'MANAGER', 'ACTIVE', NULL, NOW(), NOW()),
-(2, 'executor01', '$2a$10$r7ThwTGHfF7oaTcQ9lT7UO0deo9JdyWFM8kwVu9xWS.DtQrDoahH.', '执行人-李工', 'executor@hq.local', '13800000002', 'EXECUTOR', 'ACTIVE', NULL, NOW(), NOW()),
-(3, 'staff01', '$2a$10$r7ThwTGHfF7oaTcQ9lT7UO0deo9JdyWFM8kwVu9xWS.DtQrDoahH.', '现场工作人员', 'staff@hq.local', '13800000003', 'SITE_STAFF', 'ACTIVE', NULL, NOW(), NOW()),
-(4, 'student01', '$2a$10$r7ThwTGHfF7oaTcQ9lT7UO0deo9JdyWFM8kwVu9xWS.DtQrDoahH.', '演示学员', 'student@hq.local', '13800000004', 'STUDENT', 'ACTIVE', NULL, NOW(), NOW()),
-(5, 'student02', '$2a$10$r7ThwTGHfF7oaTcQ9lT7UO0deo9JdyWFM8kwVu9xWS.DtQrDoahH.', '演示学员-王敏', 'student02@hq.local', '13800000005', 'STUDENT', 'ACTIVE', NULL, NOW(), NOW())
+(1, 'manager01', '$2a$10$r7ThwTGHfF7oaTcQ9lT7UO0deo9JdyWFM8kwVu9xWS.DtQrDoahH.', '培训经理', 'manager@hq.local', '13800000001', 'MANAGER', 'ACTIVE', '系统初始化账号', NULL, NOW(), NULL, NOW(), NOW()),
+(2, 'executor01', '$2a$10$r7ThwTGHfF7oaTcQ9lT7UO0deo9JdyWFM8kwVu9xWS.DtQrDoahH.', '培训执行', 'executor@hq.local', '13800000002', 'EXECUTOR', 'ACTIVE', '系统初始化账号', NULL, NOW(), NULL, NOW(), NOW()),
+(3, 'staff01', '$2a$10$r7ThwTGHfF7oaTcQ9lT7UO0deo9JdyWFM8kwVu9xWS.DtQrDoahH.', '现场服务专员', 'staff@hq.local', '13800000003', 'SITE_STAFF', 'ACTIVE', '系统初始化账号', NULL, NOW(), NULL, NOW(), NOW()),
+(4, 'student01', '$2a$10$r7ThwTGHfF7oaTcQ9lT7UO0deo9JdyWFM8kwVu9xWS.DtQrDoahH.', '张晓晨', 'student@hq.local', '13800000004', 'STUDENT', 'ACTIVE', '系统初始化账号', NULL, NOW(), NULL, NOW(), NOW()),
+(5, 'student02', '$2a$10$r7ThwTGHfF7oaTcQ9lT7UO0deo9JdyWFM8kwVu9xWS.DtQrDoahH.', '王敏', 'student02@hq.local', '13800000005', 'STUDENT', 'ACTIVE', '系统初始化账号', NULL, NOW(), NULL, NOW(), NOW()),
+(6, 'admin01', '$2a$10$r7ThwTGHfF7oaTcQ9lT7UO0deo9JdyWFM8kwVu9xWS.DtQrDoahH.', '系统管理员', 'admin@hq.local', '13800000006', 'ADMIN', 'ACTIVE', '系统初始化账号', NULL, NOW(), NULL, NOW(), NOW()),
+(7, 'student03', '$2a$10$r7ThwTGHfF7oaTcQ9lT7UO0deo9JdyWFM8kwVu9xWS.DtQrDoahH.', '李晓彤', 'student03@hq.local', '13800000007', 'STUDENT', 'PENDING', NULL, NULL, NULL, NULL, NOW(), NOW())
 ON DUPLICATE KEY UPDATE
     password_hash = VALUES(password_hash),
     display_name = VALUES(display_name),
@@ -266,6 +274,9 @@ ON DUPLICATE KEY UPDATE
     phone = VALUES(phone),
     account_type = VALUES(account_type),
     account_status = VALUES(account_status),
+    review_comment = VALUES(review_comment),
+    reviewed_by = VALUES(reviewed_by),
+    reviewed_at = VALUES(reviewed_at),
     updated_at = NOW();
 
 INSERT INTO user_role (id, user_id, role_id, created_at) VALUES
@@ -273,14 +284,16 @@ INSERT INTO user_role (id, user_id, role_id, created_at) VALUES
 (2, 2, 2, NOW()),
 (3, 3, 3, NOW()),
 (4, 4, 4, NOW()),
-(5, 5, 4, NOW())
+(5, 5, 4, NOW()),
+(6, 6, 5, NOW()),
+(7, 7, 4, NOW())
 ON DUPLICATE KEY UPDATE created_at = VALUES(created_at);
 
 INSERT INTO customer_company (
     id, company_name, company_type, contact_person, contact_phone, contact_email, remark, created_at, updated_at
 ) VALUES
-(1, '未来软件科技有限公司', '软件企业', '王经理', '13600000001', 'wang@future-soft.com', '增量1演示客户', NOW(), NOW()),
-(2, '星河智造集团', '制造企业', '赵主管', '13600000002', 'zhao@star-manufacturing.com', '培训申请与通知演示客户', NOW(), NOW())
+(1, '未来软件科技有限公司', '软件企业', '王经理', '13600000001', 'wang@future-soft.com', '重点合作客户', NOW(), NOW()),
+(2, '星河智造集团', '制造企业', '赵主管', '13600000002', 'zhao@star-manufacturing.com', '重点客户单位', NOW(), NOW())
 ON DUPLICATE KEY UPDATE updated_at = NOW();
 
 INSERT INTO training_application (
@@ -306,8 +319,9 @@ ON DUPLICATE KEY UPDATE
 INSERT INTO student_profile (
     id, user_id, student_no, full_name, gender, company_id, job_title, education_level, tech_level, phone, email, created_at, updated_at
 ) VALUES
-(1, 4, 'STU20260709001', '演示学员', '男', 1, '软件工程师', '本科', '中级', '13800000004', 'student@hq.local', NOW(), NOW()),
-(2, 5, 'STU20260709002', '演示学员-王敏', '女', 1, '测试工程师', '本科', '中级', '13800000005', 'student02@hq.local', NOW(), NOW())
+(1, 4, 'STU20260709001', '张晓晨', '男', 1, '软件工程师', '本科', '中级', '13800000004', 'student@hq.local', NOW(), NOW()),
+(2, 5, 'STU20260709002', '王敏', '女', 1, '测试工程师', '本科', '中级', '13800000005', 'student02@hq.local', NOW(), NOW()),
+(3, 7, 'STU20260712003', '李晓彤', '女', 2, '项目专员', '本科', '中级', '13800000007', 'student03@hq.local', NOW(), NOW())
 ON DUPLICATE KEY UPDATE
     full_name = VALUES(full_name),
     gender = VALUES(gender),
