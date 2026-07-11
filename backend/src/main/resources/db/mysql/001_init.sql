@@ -204,6 +204,8 @@ CREATE TABLE IF NOT EXISTS course_evaluation (
     enrollment_id BIGINT,
     rating INT NOT NULL,
     comment_text TEXT,
+    source VARCHAR(20) NOT NULL DEFAULT 'STUDENT',
+    proxy_staff_id BIGINT,
     submitted_by BIGINT,
     submitted_at DATETIME NOT NULL,
     created_at DATETIME NOT NULL,
@@ -212,6 +214,7 @@ CREATE TABLE IF NOT EXISTS course_evaluation (
     CONSTRAINT fk_evaluation_course FOREIGN KEY (course_id) REFERENCES course(id),
     CONSTRAINT fk_evaluation_student FOREIGN KEY (student_id) REFERENCES student_profile(id),
     CONSTRAINT fk_evaluation_enrollment FOREIGN KEY (enrollment_id) REFERENCES enrollment(id),
+    CONSTRAINT fk_evaluation_proxy_staff FOREIGN KEY (proxy_staff_id) REFERENCES user_account(id),
     CONSTRAINT fk_evaluation_submitter FOREIGN KEY (submitted_by) REFERENCES user_account(id)
 );
 
@@ -311,7 +314,7 @@ INSERT INTO course (
     id, course_no, application_id, course_name, lecturer_id, executor_user_id, start_time, end_time, location, quota, fee_amount, status, attachment_path, source_type, created_at, updated_at
 ) VALUES
 (1, 'CRS20260708001', NULL, 'Spring Boot 企业级开发实战', 1, 2, '2026-07-09 09:00:00', '2026-07-09 17:30:00', '未来技术学院 A301', 60, 1999.00, 'DRAFT', NULL, 'SYSTEM', NOW(), NOW()),
-(2, 'CRS20260708002', NULL, 'Scrum 冲刺管理与实践', 2, 2, '2026-07-10 13:30:00', '2026-07-10 18:00:00', '未来技术学院 B201', 45, 1299.00, 'PUBLISHED', NULL, 'SYSTEM', NOW(), NOW())
+(2, 'CRS20260708002', NULL, 'Scrum 冲刺管理与实践', 2, 2, '2026-07-10 13:30:00', '2026-07-10 18:00:00', '未来技术学院 B201', 45, 1299.00, 'FINISHED', NULL, 'SYSTEM', NOW(), NOW())
 ON DUPLICATE KEY UPDATE
     application_id = VALUES(application_id),
     course_name = VALUES(course_name),
@@ -338,3 +341,55 @@ ON DUPLICATE KEY UPDATE
     status = VALUES(status),
     published_at = VALUES(published_at),
     updated_at = NOW();
+
+INSERT INTO enrollment (
+    id, enrollment_no, course_id, student_id, payment_type, status, confirmed_by, confirmed_at, reject_reason, created_at, updated_at
+) VALUES
+(1, 'ENR20260710001', 2, 1, 'PERSONAL', 'CONFIRMED', 2, '2026-07-10 10:00:00', NULL, '2026-07-10 09:40:00', '2026-07-10 10:00:00'),
+(2, 'ENR20260710002', 2, 2, 'CORPORATE', 'CONFIRMED', 2, '2026-07-10 10:05:00', NULL, '2026-07-10 09:45:00', '2026-07-10 10:05:00')
+ON DUPLICATE KEY UPDATE
+    payment_type = VALUES(payment_type),
+    status = VALUES(status),
+    confirmed_by = VALUES(confirmed_by),
+    confirmed_at = VALUES(confirmed_at),
+    reject_reason = VALUES(reject_reason),
+    updated_at = VALUES(updated_at);
+
+INSERT INTO attendance_record (
+    id, enrollment_id, course_id, student_id, status, checked_in_at, checked_in_by, remark, created_at, updated_at
+) VALUES
+(1, 1, 2, 1, 'CHECKED_IN', '2026-07-10 13:20:00', 3, '已完成现场签到', '2026-07-10 10:00:00', '2026-07-10 13:20:00'),
+(2, 2, 2, 2, 'CHECKED_IN', '2026-07-10 13:25:00', 3, '企业学员签到完成', '2026-07-10 10:05:00', '2026-07-10 13:25:00')
+ON DUPLICATE KEY UPDATE
+    status = VALUES(status),
+    checked_in_at = VALUES(checked_in_at),
+    checked_in_by = VALUES(checked_in_by),
+    remark = VALUES(remark),
+    updated_at = VALUES(updated_at);
+
+INSERT INTO payment_record (
+    id, enrollment_id, course_id, student_id, receivable_amount, paid_amount, payment_method, payment_status, paid_at, handled_by, created_at, updated_at
+) VALUES
+(1, 1, 2, 1, 1299.00, 1299.00, 'CASH', 'PAID', '2026-07-10 13:35:00', 3, '2026-07-10 10:00:00', '2026-07-10 13:35:00'),
+(2, 2, 2, 2, 1299.00, 1299.00, 'CORPORATE', 'CORPORATE_PAID', '2026-07-10 13:40:00', 3, '2026-07-10 10:05:00', '2026-07-10 13:40:00')
+ON DUPLICATE KEY UPDATE
+    receivable_amount = VALUES(receivable_amount),
+    paid_amount = VALUES(paid_amount),
+    payment_method = VALUES(payment_method),
+    payment_status = VALUES(payment_status),
+    paid_at = VALUES(paid_at),
+    handled_by = VALUES(handled_by),
+    updated_at = VALUES(updated_at);
+
+INSERT INTO course_evaluation (
+    id, course_id, student_id, enrollment_id, rating, comment_text, source, proxy_staff_id, submitted_by, submitted_at, created_at, updated_at
+) VALUES
+(1, 2, 1, 1, 5, '课程节奏清晰，Scrum 例会和任务拆解示例很实用。', 'STUDENT', NULL, 4, '2026-07-10 18:20:00', '2026-07-10 18:20:00', '2026-07-10 18:20:00')
+ON DUPLICATE KEY UPDATE
+    rating = VALUES(rating),
+    comment_text = VALUES(comment_text),
+    source = VALUES(source),
+    proxy_staff_id = VALUES(proxy_staff_id),
+    submitted_by = VALUES(submitted_by),
+    submitted_at = VALUES(submitted_at),
+    updated_at = VALUES(updated_at);

@@ -5,11 +5,13 @@ import AttendanceView from '../views/AttendanceView.vue'
 import { useAuthStore } from '../stores/auth'
 import CoursesView from '../views/CoursesView.vue'
 import EnrollmentsView from '../views/EnrollmentsView.vue'
+import EvaluationView from '../views/EvaluationView.vue'
 import HomeView from '../views/HomeView.vue'
 import LecturersView from '../views/LecturersView.vue'
 import LoginView from '../views/LoginView.vue'
 import PaymentsView from '../views/PaymentsView.vue'
 import PlaceholderView from '../views/PlaceholderView.vue'
+import StatisticsView from '../views/StatisticsView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -85,13 +87,13 @@ const router = createRouter({
         {
           path: 'evaluations',
           name: 'evaluations',
-          component: PlaceholderView,
+          component: EvaluationView,
           meta: { title: '评价管理' },
         },
         {
           path: 'statistics',
           name: 'statistics',
-          component: PlaceholderView,
+          component: StatisticsView,
           meta: { title: '统计报表' },
         },
       ],

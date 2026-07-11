@@ -69,6 +69,7 @@ public class AuthService {
                     new MenuItem("培训申请", "/applications", "EditPen"),
                     new MenuItem("课程管理", "/courses", "Reading"),
                     new MenuItem("讲师管理", "/lecturers", "UserFilled"),
+                    new MenuItem("评价管理", "/evaluations", "School"),
                     new MenuItem("统计报表", "/statistics", "DataAnalysis")
             );
         }
@@ -81,6 +82,7 @@ public class AuthService {
                     new MenuItem("学员管理", "/students", "User"),
                     new MenuItem("通知发布", "/notices", "Document"),
                     new MenuItem("报名管理", "/enrollments", "Ticket"),
+                    new MenuItem("评价管理", "/evaluations", "School"),
                     new MenuItem("统计报表", "/statistics", "DataAnalysis")
             );
         }

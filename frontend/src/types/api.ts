@@ -133,3 +133,135 @@ export interface PaymentRecordView {
   createdAt: string
   updatedAt: string
 }
+
+export interface PendingEvaluationCourse {
+  courseId: number
+  enrollmentId: number
+  courseNo: string
+  courseName: string
+  lecturerName: string
+  startTime: string
+  endTime: string
+  location: string
+}
+
+export interface EvaluationRecordView {
+  id: number
+  courseId: number
+  enrollmentId: number
+  courseNo: string
+  courseName: string
+  lecturerName: string
+  studentId: number
+  studentName: string
+  companyName: string
+  rating: number
+  commentText: string
+  source: string
+  proxyStaffId: number | null
+  proxyStaffName: string
+  submittedBy: number | null
+  submittedByName: string
+  submittedAt: string
+}
+
+export interface EvaluationCandidateRecord {
+  courseId: number
+  enrollmentId: number
+  studentId: number
+  studentNo: string
+  studentName: string
+  companyName: string
+  checkedInAt: string
+  evaluationStatus: string
+  evaluationSource: string | null
+  submittedAt: string | null
+}
+
+export interface CourseEvaluationSummary {
+  courseId: number
+  courseNo: string
+  courseName: string
+  lecturerName: string
+  startTime: string
+  endTime: string
+  shouldEvaluateCount: number
+  evaluatedCount: number
+  averageRating: number | null
+}
+
+export interface ScoreDistributionItem {
+  score: number
+  count: number
+}
+
+export interface CourseEvaluationReport {
+  courseId: number
+  courseNo: string
+  courseName: string
+  lecturerName: string
+  startTime: string
+  endTime: string
+  location: string
+  shouldEvaluateCount: number
+  evaluatedCount: number
+  participationRate: number
+  averageRating: number | null
+  scoreDistribution: ScoreDistributionItem[]
+  details: EvaluationRecordView[]
+}
+
+export interface CourseStatisticsRecord {
+  courseId: number
+  courseNo: string
+  courseName: string
+  lecturerName: string
+  startTime: string
+  endTime: string
+  quota: number
+  enrollmentCount: number
+  attendanceCount: number
+  paidAmountTotal: number
+  averageRating: number | null
+}
+
+export interface StudentStatisticsRecord {
+  studentId: number
+  studentNo: string
+  studentName: string
+  companyName: string
+  attendanceCount: number
+  enrollmentCount: number
+  paidAmountTotal: number
+  averageRating: number | null
+}
+
+export interface LecturerStatisticsRecord {
+  lecturerId: number
+  lecturerNo: string
+  lecturerName: string
+  courseCount: number
+  attendanceCount: number
+  averageRating: number | null
+  feeAmountTotal: number
+}
+
+export interface RevenueDetailRecord {
+  paymentId: number
+  courseName: string
+  studentName: string
+  receivableAmount: number
+  paidAmount: number
+  paymentMethod: string
+  paidAt: string | null
+  handledByName: string
+}
+
+export interface RevenueStatisticsResponse {
+  receivableAmountTotal: number
+  paidAmountTotal: number
+  specialPaymentCount: number
+  cashAmountRatio: number
+  transferAmountRatio: number
+  details: RevenueDetailRecord[]
+}

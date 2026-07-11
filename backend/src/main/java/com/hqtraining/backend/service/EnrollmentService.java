@@ -464,8 +464,9 @@ public class EnrollmentService {
         }
 
         boolean corporate = "CORPORATE".equals(existing.paymentType());
-        BigDecimal receivableAmount = corporate ? BigDecimal.ZERO : existing.courseFeeAmount();
-        BigDecimal paidAmount = BigDecimal.ZERO;
+        // 企业统付课程也需要计入应收与实收，方便后续收入报表口径保持一致。
+        BigDecimal receivableAmount = existing.courseFeeAmount();
+        BigDecimal paidAmount = corporate ? existing.courseFeeAmount() : BigDecimal.ZERO;
         String paymentMethod = corporate ? "CORPORATE" : null;
         String paymentStatus = corporate ? "CORPORATE_PAID" : "UNPAID";
 

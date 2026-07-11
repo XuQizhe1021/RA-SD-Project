@@ -2,13 +2,22 @@ import http from './http'
 import type {
   ApiResponse,
   AttendanceRecordView,
+  CourseEvaluationReport,
+  CourseEvaluationSummary,
   CourseOptionRecord,
   CourseRecord,
+  CourseStatisticsRecord,
+  EvaluationCandidateRecord,
+  EvaluationRecordView,
   EnrollmentRecord,
   LecturerRecord,
+  LecturerStatisticsRecord,
   PageResult,
+  PendingEvaluationCourse,
   PaymentRecordView,
+  RevenueStatisticsResponse,
   StudentOptionRecord,
+  StudentStatisticsRecord,
 } from '../types/api'
 
 export interface LecturerQuery {
@@ -92,6 +101,27 @@ export interface PaymentPayPayload {
   paymentMethod: string
 }
 
+export interface EvaluationSubmitPayload {
+  courseId: number
+  studentId?: number
+  enrollmentId: number
+  rating: number
+  commentText?: string
+}
+
+export interface EvaluationSummaryQuery {
+  keyword?: string
+  startDate?: string
+  endDate?: string
+  hasEvaluation?: boolean
+}
+
+export interface StatisticsQuery {
+  keyword?: string
+  startDate?: string
+  endDate?: string
+}
+
 export async function fetchLecturerPage(params: LecturerQuery) {
   return (await http.get('/lecturers', { params })) as ApiResponse<PageResult<LecturerRecord>>
 }
@@ -162,4 +192,48 @@ export async function fetchPaymentPage(params: PaymentQuery) {
 
 export async function payPayment(id: number, payload: PaymentPayPayload) {
   return (await http.post(`/payments/${id}/pay`, payload)) as ApiResponse<PaymentRecordView>
+}
+
+export async function fetchPendingEvaluationCourses() {
+  return (await http.get('/evaluations/pending-courses')) as ApiResponse<PendingEvaluationCourse[]>
+}
+
+export async function fetchMyEvaluations() {
+  return (await http.get('/evaluations/mine')) as ApiResponse<EvaluationRecordView[]>
+}
+
+export async function fetchEvaluationProxyCourses() {
+  return (await http.get('/evaluations/proxy-courses')) as ApiResponse<CourseOptionRecord[]>
+}
+
+export async function fetchEvaluationProxyCandidates(courseId: number) {
+  return (await http.get('/evaluations/proxy-candidates', { params: { courseId } })) as ApiResponse<EvaluationCandidateRecord[]>
+}
+
+export async function submitEvaluation(payload: EvaluationSubmitPayload) {
+  return (await http.post('/evaluations', payload)) as ApiResponse<EvaluationRecordView>
+}
+
+export async function fetchEvaluationSummaries(params: EvaluationSummaryQuery) {
+  return (await http.get('/evaluations/summaries', { params })) as ApiResponse<CourseEvaluationSummary[]>
+}
+
+export async function fetchCourseEvaluationReport(courseId: number) {
+  return (await http.get(`/evaluations/courses/${courseId}/report`)) as ApiResponse<CourseEvaluationReport>
+}
+
+export async function fetchCourseStatistics(params: StatisticsQuery) {
+  return (await http.get('/statistics/courses', { params })) as ApiResponse<CourseStatisticsRecord[]>
+}
+
+export async function fetchStudentStatistics(params: StatisticsQuery) {
+  return (await http.get('/statistics/students', { params })) as ApiResponse<StudentStatisticsRecord[]>
+}
+
+export async function fetchLecturerStatistics(params: StatisticsQuery) {
+  return (await http.get('/statistics/lecturers', { params })) as ApiResponse<LecturerStatisticsRecord[]>
+}
+
+export async function fetchRevenueStatistics(params: StatisticsQuery) {
+  return (await http.get('/statistics/revenue', { params })) as ApiResponse<RevenueStatisticsResponse>
 }
