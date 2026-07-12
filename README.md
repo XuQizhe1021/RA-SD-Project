@@ -2,337 +2,250 @@
 
 ## 1. 项目简介
 
-HQ技术培训管理系统用于支撑培训业务的完整处理流程，覆盖以下核心环节：
+HQ技术培训管理系统用于支撑培训业务的完整处理流程，覆盖培训申请、课程管理、讲师管理、学员管理、通知发布、在线报名、签到收费、培训评价与统计报表等核心场景。
 
-- 培训申请与审批
-- 课程管理
-- 讲师管理
-- 学员管理
-- 通知发布
-- 在线报名
-- 签到与收费
-- 培训评价
-- 统计报表
+当前工程已经完成以下交付能力：
 
-系统包含前端管理界面、后端服务和 MySQL 数据库初始化脚本。只要按本文档操作，即使技术基础较弱，也可以完成启动与使用。
-
-## 1.1 2026-07-12 账号体系改造说明
-
-本次已完成账号注册与审核能力升级，交付后的账号使用方式如下：
-
-- 登录页支持学员自助提交注册申请
-- 学员注册成功后进入待审核状态，审核通过后方可登录
-- 执行人可进入“账号管理”处理待审核的学员注册申请
-- 系统管理员可审核注册申请，并创建经理、执行人、现场工作人员等内部账号
-- 数据库初始化脚本已同步新增系统管理员角色、账号审核字段和待审核学员样例数据
+- 前端静态化并入后端 `Spring Boot`
+- 生产环境单端口访问
+- 统一启动器
+- 私有 MySQL 运行时初始化与启停脚本
+- `Inno Setup` 安装包构建脚本
+- 可直接分发的 Windows 安装包
 
 ## 2. 目录说明
 
 ```text
 project/
-├─ backend/                  后端 Spring Boot 工程
-├─ frontend/                 前端 Vue 工程
-├─ start_project.ps1         一键启动脚本（主脚本）
-├─ start_project.bat         一键启动脚本（双击入口）
-└─ README.md                 使用说明
+├─ backend/                       后端 Spring Boot 工程
+├─ frontend/                      前端 Vue 工程
+├─ installer/                     安装包目录
+│  ├─ app.iss                     Inno Setup 安装脚本
+│  ├─ build_installer.ps1         安装包构建脚本
+│  ├─ build_installer.bat         安装包构建双击入口
+│  ├─ payload/                    安装后脚本模板
+│  ├─ staging/                    安装包暂存目录
+│  └─ output/                     安装包输出目录
+├─ build_delivery.ps1             交付态构建脚本
+├─ build_delivery.bat             交付态构建双击入口
+├─ launch_app.ps1                 源码交付态统一启动器
+├─ launch_app.bat                 源码交付态统一启动双击入口
+├─ start_project.ps1              开发态联调脚本
+├─ start_project.bat              开发态联调双击入口
+└─ README.md                      使用说明
 ```
 
-## 3. 使用前先看
+## 3. 推荐使用方式
 
-### 3.1 必须使用管理员权限
+### 3.1 直接使用安装包
 
-本项目推荐使用 Windows 的系统级 MySQL 服务，而不是临时用户态数据库。
+当前已经生成好的安装包位于：
 
-因此，请务必使用以下任一方式启动：
+- `installer/output/HQTrainingSetup.exe`
 
-1. 直接双击 `start_project.bat`，按提示授权管理员权限
-2. 或者右键 `start_project.bat`，选择“以管理员身份运行”
-3. 或者先用“管理员身份”打开 PowerShell，再运行脚本
+这是最接近最终交付给甲方的使用方式。安装完成后：
 
-如果没有管理员权限，脚本将无法正常启动 MySQL 系统服务。
-其中 `start_project.bat` 只负责调用 PowerShell，真正的管理员权限检测和提升由 `start_project.ps1` 自动完成。
+- 安装目录下会包含内置 Java 运行时与私有 MySQL 运行时
+- 首次安装会自动初始化私有数据库
+- 桌面快捷方式可直接启动系统
+- 启动后统一访问地址为 `http://127.0.0.1:18080`
 
-### 3.2 本项目默认使用的本地环境
+### 3.2 从源码重新打安装包
 
-- 操作系统：Windows
-- Java：17
-- Maven：3.9 及以上
-- Node.js：18 及以上
-- MySQL：8.0，且安装为 Windows 系统服务
-
-### 3.3 本项目默认数据库配置
-
-后端默认连接本机 MySQL：
-
-- 地址：`127.0.0.1`
-- 端口：`3306`
-- 数据库名：`hq_training`
-- 用户名：`root`
-- 密码：`123456`
-
-对应配置文件位置：
-
-- `backend/src/main/resources/application.yml`
-
-如果你的数据库密码不是 `123456`，可以打开 `start_project.ps1`，把脚本顶部的默认密码改成你自己的密码。
-
-## 4. 最推荐的启动方式
-
-这是最适合小白用户的方式。
-
-### 步骤 1：准备好系统级 MySQL
-
-请确认你的电脑已经安装了 MySQL Server，并且它是作为 Windows 服务安装的。
-
-常见的服务名通常是：
-
-- `MySQL80`
-- `MySQL`
-
-如果你不确定，可以打开“任务管理器”或“服务”，查找名称里带 `MySQL` 的服务。
-也可以在管理员 PowerShell 中执行：
+如果需要重新产出新的安装包，可在项目根目录执行：
 
 ```powershell
-sc.exe query state= all | findstr /I mysql
+powershell.exe -ExecutionPolicy Bypass -File ".\installer\build_installer.ps1" -SkipTests
 ```
 
-### 步骤 2：以管理员身份运行启动脚本
+或者双击：
 
-在项目根目录中，直接双击或右键：
+- `installer/build_installer.bat`
+
+脚本会自动完成：
+
+1. 构建前端静态资源并并入后端
+2. 打包后端可执行 `jar`
+3. 使用 `jlink` 生成内置 Java 运行时
+4. 自动采集本机 MySQL 运行时文件
+5. 组装安装包 `staging` 目录
+6. 调用 `Inno Setup` 生成最终安装包
+
+默认输出目录：
+
+- `installer/output/`
+
+### 3.3 直接运行源码交付态
+
+如果你只想在本机快速验证交付态效果，而不经过安装包，可以继续使用：
+
+- `build_delivery.bat`
+- `launch_app.bat`
+
+这种方式依然是“前端并入后端”的单体交付形态，但数据库仍默认连接你本机现成的 MySQL。
+
+补充说明：
+
+- 双击 `launch_app.bat` 后，启动器会先询问是否重建数据库
+- 选择 `N` 时会保留当前数据库中的已有业务数据，仅执行应用启动
+- 选择 `Y` 时会重新导入 `backend/src/main/resources/db/mysql/001_init.sql`，原有数据库数据会被初始化脚本覆盖
+- 日常使用建议选择 `N`，只有在确实需要恢复初始演示数据时再选择 `Y`
+
+### 3.4 开发态联调
+
+如果你还需要前端热更新开发体验，可以继续使用：
 
 - `start_project.bat`
+- `start_project.ps1`
 
-如果出现权限确认，请选择“是”。
+该方式会分别启动后端和 `Vite` 开发服务器，只适合开发联调，不适合作为最终交付方式。
 
-双击 `start_project.bat` 后会进入 PowerShell；如果当前不是管理员，它会自动再弹出管理员权限确认窗口。确认后继续按下面顺序执行：
+补充说明：
 
-1. 检查 MySQL 是否正确安装
-2. 启动 MySQL 系统服务
-3. 导入数据库种子数据
-4. 打开一个新终端启动后端
-5. 打开一个新终端启动前端
+- 双击 `start_project.bat` 后，启动器同样会先询问是否重建数据库
+- 选择 `N` 时会保留当前数据库数据，只启动前后端开发环境
+- 选择 `Y` 时会重新导入 `backend/src/main/resources/db/mysql/001_init.sql`，用于恢复初始演示数据
 
-或者在根目录使用指令：
+## 4. 安装包说明
 
-```PowerShell
-powershell.exe -NoExit -ExecutionPolicy Bypass -File ".\start_project.ps1"
+当前安装包采用以下结构：
+
+- 应用程序：后端可执行 `jar` + 已并入的前端静态资源
+- Java 运行时：安装包内置运行时，不依赖用户本机预装 Java
+- 数据库：安装包内置私有 MySQL 运行时，不依赖用户本机预装 MySQL 服务
+- 启动方式：安装后通过统一启动器完成“检查数据库 -> 启动数据库 -> 启动后端 -> 打开浏览器”
+
+安装包默认使用的内部端口：
+
+- 应用端口：`18080`
+- 私有数据库端口：`23306`
+
+安装包默认数据库账号：
+
+- 管理账号：`hq_app`
+- 数据库密码：由安装包内部脚本自动写入外部配置文件，仅供应用连接使用
+
+卸载时：
+
+- 会先执行清理脚本，尝试停止后端与私有数据库
+- 会询问是否同时删除本地数据库数据与日志
+
+## 5. 重新打包前提
+
+只有在“重新构建安装包”时，当前机器才需要这些环境：
+
+- Java（当前脚本会自动从本机 Java 环境生成内置运行时）
+- Maven 3.9 及以上
+- Node.js 18 及以上
+- 一份可读取的 MySQL 运行时目录
+- Inno Setup 6
+
+说明：
+
+- 当前脚本会自动探测本机 `java`、`jlink`、`mysqld.exe` 和 `ISCC.exe`
+- 若 MySQL 不是默认安装路径，可在构建安装包时通过 `-MySqlRuntimeDir` 显式指定
+
+示例：
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File ".\installer\build_installer.ps1" `
+  -SkipTests `
+  -MySqlRuntimeDir "C:\mysql-8.0.33-winx64"
 ```
 
-### 步骤 3：等待两个新窗口启动完成
+## 6. 交付态配置说明
 
-脚本运行后，会另外打开两个窗口：
+源码交付态配置文件位于：
 
-- 一个用于后端
-- 一个用于前端
+- `backend/src/main/resources/application-prod.yml`
 
-正常情况下：
+安装包运行时使用的外部配置文件位于安装目录：
 
-- 后端地址：`http://localhost:18080`
-- 前端地址：`http://localhost:5173`
+- `app/application-prod.yml`
 
-### 步骤 4：打开浏览器访问系统
+安装包中的这份配置默认连接私有数据库：
 
-浏览器访问：
+- `127.0.0.1:23306`
 
-- `http://localhost:5173`
+因此最终用户安装后：
 
-## 5. 初始账号
+- 不需要自己装 Java
+- 不需要自己装 Node.js
+- 不需要自己配 MySQL 服务
+
+## 7. 初始账号
 
 系统已内置基础账号，可直接登录：
 
-| 角色     | 用户名          | 密码       |
-| ------ | ------------ | -------- |
-| 系统管理员 | `admin01`    | `123456` |
-| 经理     | `manager01`  | `123456` |
-| 执行人    | `executor01` | `123456` |
-| 现场工作人员 | `staff01`    | `123456` |
-| 学员     | `student01`  | `123456` |
-| 学员     | `student02`  | `123456` |
+| 角色 | 用户名 | 密码 |
+| --- | --- | --- |
+| 系统管理员 | `admin01` | `123456` |
+| 经理 | `manager01` | `123456` |
+| 执行人 | `executor01` | `123456` |
+| 现场工作人员 | `staff01` | `123456` |
+| 学员 | `student01` | `123456` |
+| 学员 | `student02` | `123456` |
 
-说明：
+补充说明：
 
 - `admin01` 可创建内部岗位账号，并审核学员注册申请
-- `executor01` 可审核学员注册申请，但无法创建内部岗位账号
-- 数据库中预置了一个待审核学员账号 `student03`，用于验证注册审核流程；该账号在审核通过前不能登录
+- `executor01` 可处理学员注册审核，但不能创建内部岗位账号
+- 数据库中预置了一个待审核学员账号 `student03`，可用于验证注册审核流程
 
-## 6. 如果你想手动启动
+## 8. 已完成的验证
 
-如果你不想用脚本，也可以按下面步骤手动启动。
+本次已完成以下验证：
 
-### 6.1 启动 MySQL 系统服务
+- `build_delivery.ps1 -SkipTests` 可成功构建前后端交付产物
+- `installer/build_installer.ps1 -PrepareOnly` 可成功组装安装包 `staging` 目录
+- 私有数据库初始化脚本 `init_db.ps1` 已在纯 ASCII 路径下验证通过
+- 私有数据库启动脚本 `start_db.ps1` 已验证可拉起 `23306` 端口
+- `Inno Setup` 安装包已成功生成
 
-请先用管理员身份打开 PowerShell，然后先查询真实服务名：
+## 9. 常见问题
 
-```powershell
-sc.exe query state= all | findstr /I mysql
-```
-
-如果输出里显示的是 `SERVICE_NAME: MySQL`，那么启动命令就是：
-
-```powershell
-sc.exe start MySQL
-```
-
-如果输出里显示的是 `SERVICE_NAME: MySQL80`，那么启动命令就是：
-
-```powershell
-sc.exe start MySQL80
-```
-
-不要直接照抄固定的服务名，应该以你自己电脑查询到的结果为准。
-
-### 6.2 导入数据库初始化脚本
-
-请在项目根目录执行：
-
-```powershell
-cd "你的项目根目录路径"
-cmd /c "mysql --default-character-set=utf8mb4 --host=127.0.0.1 --port=3306 --user=root --password=123456 < backend\src\main\resources\db\mysql\001_init.sql"
-```
-
-说明：
-
-- 这一步会重新创建 `hq_training` 数据库
-- 脚本内包含建表和初始化数据
-- 如果数据库里已有旧数据，这一步会被覆盖
-- 不要使用 `Get-Content ... | mysql ...` 这类 PowerShell 管道导入方式，否则中文内容可能被导成 `???????`
-
-### 6.3 启动后端
-
-在一个新的终端窗口中执行：
-
-```powershell
-Set-Location .\backend
-mvn spring-boot:run
-```
-
-### 6.4 启动前端
-
-再打开一个新的终端窗口，执行：
-
-```powershell
-Set-Location .\frontend
-npm install
-npm run dev
-```
-
-说明：
-
-- 第一次启动前端时，需要先执行 `npm install`
-- 如果已经安装过依赖，后续只需要执行 `npm run dev`
-
-## 7. 首次使用建议的验证顺序
-
-建议登录后按这个顺序检查系统是否正常：
-
-1. 用 `executor01` 登录
-2. 打开“账号管理”，确认可看到待审核注册申请
-3. 打开“培训申请”
-4. 打开“课程管理”
-5. 打开“讲师管理”
-6. 打开“学员管理”
-7. 打开“通知发布”
-8. 打开“报名管理”
-9. 打开“签到管理”
-10. 打开“收费管理”
-11. 打开“评价管理”
-12. 打开“统计报表”
-
-如果这些页面都能正常打开，说明系统已经基本启动成功。
-
-## 8. 常见问题
-
-### 8.1 提示“未检测到 MySQL 服务”
+### 9.1 安装包构建脚本提示找不到 `ISCC.exe`
 
 原因：
 
-- 电脑里没有安装 MySQL Server
-- 或者安装了 MySQL，但没有注册为 Windows 系统服务
+- 本机没有安装 Inno Setup 6
+- 或安装路径不在脚本默认探测范围内
 
 处理办法：
 
-1. 安装 MySQL Server 8.0
-2. 安装时选择注册为 Windows Service
-3. 常见服务名是 `MySQL80` 或 `MySQL`
-4. 安装完成后重新运行脚本
+1. 安装 Inno Setup 6
+2. 重新执行 `installer/build_installer.ps1`
+3. 如仍未识别，可通过 `-IsccPath` 显式指定 `ISCC.exe`
 
-### 8.2 提示数据库登录失败
+### 9.2 安装包构建脚本提示找不到 MySQL 运行时目录
 
 原因：
 
-- 你的 MySQL `root` 密码不是 `123456`
+- 本机没有安装 MySQL
+- 或 `mysqld.exe` 不在环境变量里
 
 处理办法：
 
-1. 打开 `start_project.ps1`
-2. 找到脚本顶部的数据库用户名和密码
-3. 改成你本机真实的 MySQL 用户名和密码
-4. 保存后重新运行脚本
+1. 确认本机存在可用的 MySQL 运行时目录
+2. 通过 `-MySqlRuntimeDir` 显式指定该目录
 
-### 8.3 数据库导入后页面出现 `???????`
+### 9.3 在中文工作目录里直接运行 `staging` 中的私有 MySQL 脚本失败
 
-原因：
+这是 MySQL Windows 运行时对路径兼容性的老问题。最终安装包默认安装到 `Program Files` 这类 ASCII 路径，实际安装使用不受影响。
 
-- 使用了 `Get-Content ... | mysql ...` 这类 PowerShell 管道导入方式
-- Windows PowerShell 在把文本传给 `mysql.exe` 时可能发生中文编码损坏
+### 9.4 仍想保留前端热更新开发方式
 
-处理办法：
+可以继续使用：
 
-1. 重新导入数据库，不要使用管道方式
-2. 在项目根目录执行下面这条命令：
+- `start_project.bat`
 
-```powershell
-cmd /c "mysql --default-character-set=utf8mb4 --host=127.0.0.1 --port=3306 --user=root --password=123456 < backend\src\main\resources\db\mysql\001_init.sql"
-```
+但这属于开发态模式，不属于最终交付方式。
 
-1. 导入完成后重启后端，刷新前端页面
+## 10. 当前结果
 
-### 8.4 前端窗口打开后报 `npm` 相关错误
+当前项目已经不只是“安装包方案文档”，而是已经具备完整的安装包产线与产物：
 
-原因：
-
-- 没有安装 Node.js
-- 或者 Node.js 没有加入系统环境变量
-
-处理办法：
-
-1. 安装 Node.js 18 或更高版本
-2. 安装完成后重新打开终端
-3. 再重新运行脚本
-
-### 8.5 后端窗口打开后报 `mvn` 或 `java` 相关错误
-
-原因：
-
-- 没有安装 Java 17
-- 没有安装 Maven
-- 或者环境变量未配置
-
-处理办法：
-
-1. 安装 Java 17
-2. 安装 Maven 3.9 及以上版本
-3. 确认在终端中执行 `java -version` 和 `mvn -version` 都能看到版本信息
-4. 再重新运行脚本
-
-## 9. 角色说明
-
-| 角色     | 可访问模块                                        | 主要用途             |
-| ------ | -------------------------------------------- | ---------------- |
-| 经理     | 首页概览、培训申请、课程管理、讲师管理、评价管理、统计报表                | 查看申请审批、课程推进和统计结果 |
-| 系统管理员 | 首页概览、账号管理                                    | 负责账号创建、注册审核与账户维护 |
-| 执行人    | 首页概览、账号管理、培训申请、课程管理、讲师管理、学员管理、通知发布、报名管理、评价管理、统计报表 | 负责课程组织、通知发布、报名处理与学员注册审核 |
-| 现场工作人员 | 首页概览、签到管理、收费管理、评价管理                          | 负责现场签到、收费和评价代录   |
-| 学员     | 首页概览、通知发布、报名管理、收费管理、评价管理                     | 查看通知、报名、缴费和提交评价  |
-
-## 10. 说明
-
-- 本项目推荐始终使用系统级 MySQL 服务，不推荐使用临时用户态数据库
-- 启动脚本默认会重新导入数据库种子数据，请不要在正式业务数据库上直接执行
-- 如需使用新的注册审核能力，请重新导入 `backend/src/main/resources/db/mysql/001_init.sql`
-- 如需调整数据库连接，可修改 `backend/src/main/resources/application.yml` 或启动脚本中的数据库参数
-
-如果你只想快速使用系统，请记住最重要的两句话：
-
-1. 运行 `start_project.bat`，并同意管理员权限提升
-2. 等待前后端两个窗口都启动完成后，再打开浏览器访问 `http://localhost:5173`
+- 安装包脚本：`installer/app.iss`
+- 安装包构建脚本：`installer/build_installer.ps1`
+- 安装后初始化与启停脚本：`installer/payload/scripts/`
+- 最终安装包：`installer/output/HQTrainingSetup.exe`

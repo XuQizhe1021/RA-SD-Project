@@ -1,7 +1,11 @@
 frontend/node_modules/
 frontend/dist/
+backend/src/main/resources/static/
 backend/target/
 mysql-runtime/
+logs/
+installer/staging/
+installer/output/
 
 # Environment files
 .env

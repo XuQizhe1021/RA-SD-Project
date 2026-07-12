@@ -1,5 +1,5 @@
 server:
-  port: 18080
+  port: ${SERVER_PORT:18080}
 
 spring:
   application:
@@ -10,7 +10,11 @@ spring:
     password: ${DB_PASSWORD:123456}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
+logging:
+  file:
+    path: ${APP_LOG_DIR:./logs}
+
 app:
   jwt:
-    secret: "hq-training-system-secret-key-change-before-production"
-    expiration-hours: 8
+    secret: ${APP_JWT_SECRET:hq-training-system-secret-key-change-before-production}
+    expiration-hours: ${APP_JWT_EXPIRATION_HOURS:8}

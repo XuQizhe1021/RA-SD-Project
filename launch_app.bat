@@ -1,21 +1,19 @@
 @echo off
 setlocal
 
-REM This batch file only opens PowerShell.
-REM The PowerShell script handles elevation by itself.
-
 set "SCRIPT_DIR=%~dp0"
-set "PS_SCRIPT=%SCRIPT_DIR%start_project.ps1"
+set "PS_SCRIPT=%SCRIPT_DIR%launch_app.ps1"
 set "PS_ARGS="
 
 cd /d "%SCRIPT_DIR%"
+
 echo.
 echo ======================================================
-echo HQ Training Management System Dev Launcher
+echo HQ Training Management System Launcher
 echo ======================================================
 echo Rebuild database before startup?
 echo Y = Reimport seed SQL and overwrite existing data.
-echo N = Keep current database data and start dev environment only.
+echo N = Keep current database data and start normally.
 echo.
 choice /C YN /N /M "Select [Y/N, recommended N]: "
 
@@ -25,12 +23,11 @@ if errorlevel 2 (
     set "PS_ARGS=-RebuildDatabase"
 )
 
-echo Opening PowerShell launcher...
-powershell.exe -NoExit -ExecutionPolicy Bypass -File "%PS_SCRIPT%" %PS_ARGS%
+powershell.exe -ExecutionPolicy Bypass -File "%PS_SCRIPT%" %PS_ARGS%
 
 if errorlevel 1 (
     echo.
-    echo PowerShell launcher exited with an error.
+    echo Launch failed.
     pause
 )
 

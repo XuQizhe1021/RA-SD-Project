@@ -12,7 +12,8 @@ param(
     [int]$DbPort = 3306,
     [string]$DbName = "hq_training",
     [string]$DbUser = "root",
-    [string]$DbPassword = "123456"
+    [string]$DbPassword = "123456",
+    [switch]$RebuildDatabase
 )
 
 $ErrorActionPreference = "Stop"
@@ -192,6 +193,10 @@ if (-not (Test-Administrator)) {
         "-DbPassword", $DbPassword
     )
 
+    if ($RebuildDatabase) {
+        $elevatedArgs += "-RebuildDatabase"
+    }
+
     Start-Process -FilePath "powershell.exe" -Verb RunAs -WorkingDirectory $ProjectRoot -ArgumentList $elevatedArgs
     exit 0
 }
@@ -255,11 +260,16 @@ if (-not (Wait-MySqlReady -MySqlExe $mysqlExe)) {
 
 Write-Info "Database connection test passed."
 
-Write-Step "Step 4: Import seed database"
+Write-Step "Step 4: Handle database initialization option"
 
-Write-Warn "The database '$DbName' will be recreated from the SQL script."
-Invoke-MySqlSqlFile -MySqlExe $mysqlExe -SqlFilePath $SqlFile
-Write-Info "Database import completed."
+if ($RebuildDatabase) {
+    Write-Warn "The database '$DbName' will be recreated from the SQL script."
+    Invoke-MySqlSqlFile -MySqlExe $mysqlExe -SqlFilePath $SqlFile
+    Write-Info "Database import completed."
+}
+else {
+    Write-Info "Database rebuild was skipped. Existing data will be preserved."
+}
 
 Write-Step "Step 5: Open backend terminal"
 
