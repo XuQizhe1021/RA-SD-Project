@@ -1,31 +1,23 @@
 # HQ技术培训管理系统
 
-## 1. 项目简介
+## 1. 项目说明
 
-HQ技术培训管理系统用于支撑培训业务的完整处理流程，覆盖培训申请、课程管理、讲师管理、学员管理、通知发布、在线报名、签到收费、培训评价与统计报表等核心场景。
+本项目当前保留的是源码开发态运行方式，不再维护安装包方案。
 
-当前工程已经完成以下交付能力：
+开发态启动目标是：
 
-- 前端静态化并入后端 `Spring Boot`
-- 生产环境单端口访问
-- 统一启动器
-- 私有 MySQL 运行时初始化与启停脚本
-- `Inno Setup` 安装包构建脚本
-- 可直接分发的 Windows 安装包
+- 检测本机 MySQL 服务是否存在
+- 启动 MySQL 服务并确认数据库连通
+- 按需导入 `001_init.sql` 创建或重建业务数据库
+- 分别启动后端 Spring Boot 和前端 Vite 开发服务器
 
 ## 2. 目录说明
 
 ```text
 project/
 ├─ backend/                       后端 Spring Boot 工程
-├─ frontend/                      前端 Vue 工程
-├─ installer/                     安装包目录
-│  ├─ app.iss                     Inno Setup 安装脚本
-│  ├─ build_installer.ps1         安装包构建脚本
-│  ├─ build_installer.bat         安装包构建双击入口
-│  ├─ payload/                    安装后脚本模板
-│  ├─ staging/                    安装包暂存目录
-│  └─ output/                     安装包输出目录
+│  └─ src/main/resources/db/mysql/001_init.sql
+├─ frontend/                      前端 Vue 3 + Vite 工程
 ├─ build_delivery.ps1             交付态构建脚本
 ├─ build_delivery.bat             交付态构建双击入口
 ├─ launch_app.ps1                 源码交付态统一启动器
@@ -35,147 +27,216 @@ project/
 └─ README.md                      使用说明
 ```
 
-## 3. 推荐使用方式
+## 3. 开发环境要求
 
-### 3.1 直接使用安装包
+在 Windows 环境下运行时，建议提前准备：
 
-当前已经生成好的安装包位于：
-
-- `installer/output/HQTrainingSetup.exe`
-
-这是最接近最终交付给甲方的使用方式。安装完成后：
-
-- 安装目录下会包含内置 Java 运行时与私有 MySQL 运行时
-- 首次安装会自动初始化私有数据库
-- 桌面快捷方式可直接启动系统
-- 启动后统一访问地址为 `http://127.0.0.1:18080`
-
-### 3.2 从源码重新打安装包
-
-如果需要重新产出新的安装包，可在项目根目录执行：
-
-```powershell
-powershell.exe -ExecutionPolicy Bypass -File ".\installer\build_installer.ps1" -SkipTests
-```
-
-或者双击：
-
-- `installer/build_installer.bat`
-
-脚本会自动完成：
-
-1. 构建前端静态资源并并入后端
-2. 打包后端可执行 `jar`
-3. 使用 `jlink` 生成内置 Java 运行时
-4. 自动采集本机 MySQL 运行时文件
-5. 组装安装包 `staging` 目录
-6. 调用 `Inno Setup` 生成最终安装包
-
-默认输出目录：
-
-- `installer/output/`
-
-### 3.3 直接运行源码交付态
-
-如果你只想在本机快速验证交付态效果，而不经过安装包，可以继续使用：
-
-- `build_delivery.bat`
-- `launch_app.bat`
-
-这种方式依然是“前端并入后端”的单体交付形态，但数据库仍默认连接你本机现成的 MySQL。
-
-补充说明：
-
-- 双击 `launch_app.bat` 后，启动器会先询问是否重建数据库
-- 选择 `N` 时会保留当前数据库中的已有业务数据，仅执行应用启动
-- 选择 `Y` 时会重新导入 `backend/src/main/resources/db/mysql/001_init.sql`，原有数据库数据会被初始化脚本覆盖
-- 日常使用建议选择 `N`，只有在确实需要恢复初始演示数据时再选择 `Y`
-
-### 3.4 开发态联调
-
-如果你还需要前端热更新开发体验，可以继续使用：
-
-- `start_project.bat`
-- `start_project.ps1`
-
-该方式会分别启动后端和 `Vite` 开发服务器，只适合开发联调，不适合作为最终交付方式。
-
-补充说明：
-
-- 双击 `start_project.bat` 后，启动器同样会先询问是否重建数据库
-- 选择 `N` 时会保留当前数据库数据，只启动前后端开发环境
-- 选择 `Y` 时会重新导入 `backend/src/main/resources/db/mysql/001_init.sql`，用于恢复初始演示数据
-
-## 4. 安装包说明
-
-当前安装包采用以下结构：
-
-- 应用程序：后端可执行 `jar` + 已并入的前端静态资源
-- Java 运行时：安装包内置运行时，不依赖用户本机预装 Java
-- 数据库：安装包内置私有 MySQL 运行时，不依赖用户本机预装 MySQL 服务
-- 启动方式：安装后通过统一启动器完成“检查数据库 -> 启动数据库 -> 启动后端 -> 打开浏览器”
-
-安装包默认使用的内部端口：
-
-- 应用端口：`18080`
-- 私有数据库端口：`23306`
-
-安装包默认数据库账号：
-
-- 管理账号：`hq_app`
-- 数据库密码：由安装包内部脚本自动写入外部配置文件，仅供应用连接使用
-
-卸载时：
-
-- 会先执行清理脚本，尝试停止后端与私有数据库
-- 会询问是否同时删除本地数据库数据与日志
-
-## 5. 重新打包前提
-
-只有在“重新构建安装包”时，当前机器才需要这些环境：
-
-- Java（当前脚本会自动从本机 Java 环境生成内置运行时）
+- Java 17 及以上
 - Maven 3.9 及以上
 - Node.js 18 及以上
-- 一份可读取的 MySQL 运行时目录
-- Inno Setup 6
+- MySQL 8.0.x
+
+默认数据库配置如下：
+
+- 主机：`127.0.0.1`
+- 端口：`3306`
+- 数据库名：`hq_training`
+- 用户名：`root`
+- 密码：`123456`
+
+后端默认启动端口：
+
+- `18080`
+
+前端默认启动端口：
+
+- `5173`
+
+## 4. 推荐启动方式
+
+最推荐直接使用：
+
+- `start_project.bat`
+
+它会自动完成下面这些事情：
+
+1. 检测本机 MySQL 服务
+2. 尝试启动 MySQL 服务
+3. 询问你是否要重建数据库
+4. 打开一个后端终端执行 `mvn spring-boot:run`
+5. 打开一个前端终端执行 `npm install`（首次）和 `npm run dev`
+
+补充说明：
+
+- 启动时如果选择 `N`，会保留当前数据库数据
+- 启动时如果选择 `Y`，会重新导入 `backend/src/main/resources/db/mysql/001_init.sql`
+- 日常联调建议选择 `N`
+- 只有在需要恢复初始演示数据时才选择 `Y`
+
+## 5. 详细开发态指令启动教程
+
+下面这套是完整的手工命令启动流程，适合你在实验报告、答辩演示或排查问题时直接照着操作。
+
+### 5.1 打开项目根目录
+
+先进入项目根目录：
+
+```powershell
+Set-Location "E:\学习\实验报告\软件过程与项目管理\实验3-敏捷项目开发综合实践-要求+报告模板for2023未来技术学生\project"
+```
+
+### 5.2 检测本机 MySQL 服务
+
+先查看系统里是否存在 MySQL 服务：
+
+```powershell
+Get-Service | Where-Object { $_.Name -match "mysql" -or $_.DisplayName -match "mysql" }
+```
+
+如果能看到类似 `MySQL80`、`MySQL` 这样的服务名，说明本机已经安装了 MySQL 服务。
+
+再检查 `mysql.exe` 客户端是否可用：
+
+```powershell
+Get-Command mysql.exe
+```
+
+如果这里报找不到命令，说明你需要：
+
+- 安装 MySQL Client
+- 或把 MySQL 的 `bin` 目录加入系统 `PATH`
+
+常见路径类似：
+
+- `C:\Program Files\MySQL\MySQL Server 8.0\bin`
+- `C:\mysql-8.0.33-winx64\bin`
+
+### 5.3 启动 MySQL 服务
+
+如果服务存在但没有启动，可以执行：
+
+```powershell
+Start-Service MySQL80
+```
+
+如果你的服务名不是 `MySQL80`，请把它替换成你机器上的实际服务名，例如：
+
+```powershell
+Start-Service MySQL
+```
+
+启动后，建议再确认一下端口是否可用：
+
+```powershell
+Test-NetConnection 127.0.0.1 -Port 3306
+```
+
+当 `TcpTestSucceeded` 为 `True` 时，说明数据库端口已经可连接。
+
+### 5.4 创建数据库
+
+先进入 MySQL：
+
+```powershell
+mysql -h127.0.0.1 -P3306 -uroot -p123456
+```
+
+在 MySQL 命令行里执行：
+
+```sql
+CREATE DATABASE IF NOT EXISTS hq_training
+DEFAULT CHARACTER SET utf8mb4
+DEFAULT COLLATE utf8mb4_unicode_ci;
+```
+
+执行完成后退出：
+
+```sql
+exit
+```
+
+### 5.5 导入初始化脚本
+
+项目初始化脚本路径是：
+
+- `backend/src/main/resources/db/mysql/001_init.sql`
+
+在项目根目录执行下面这条命令导入：
+
+```powershell
+cmd /c "mysql --default-character-set=utf8mb4 -h127.0.0.1 -P3306 -uroot -p123456 hq_training < backend\src\main\resources\db\mysql\001_init.sql"
+```
 
 说明：
 
-- 当前脚本会自动探测本机 `java`、`jlink`、`mysqld.exe` 和 `ISCC.exe`
-- 若 MySQL 不是默认安装路径，可在构建安装包时通过 `-MySqlRuntimeDir` 显式指定
+- 这条命令会创建表结构并导入初始化数据
+- 如果你想恢复初始演示数据，可以再次执行这条命令
 
-示例：
+### 5.6 启动后端
+
+新开一个 PowerShell 窗口，执行：
 
 ```powershell
-powershell.exe -ExecutionPolicy Bypass -File ".\installer\build_installer.ps1" `
-  -SkipTests `
-  -MySqlRuntimeDir "C:\mysql-8.0.33-winx64"
+Set-Location "E:\学习\实验报告\软件过程与项目管理\实验3-敏捷项目开发综合实践-要求+报告模板for2023未来技术学生\project\backend"
+$env:DB_HOST = "127.0.0.1"
+$env:DB_PORT = "3306"
+$env:DB_NAME = "hq_training"
+$env:DB_USERNAME = "root"
+$env:DB_PASSWORD = "123456"
+mvn spring-boot:run
 ```
 
-## 6. 交付态配置说明
+后端启动成功后，默认监听：
 
-源码交付态配置文件位于：
+- `http://localhost:18080`
 
-- `backend/src/main/resources/application-prod.yml`
+### 5.7 启动前端
 
-安装包运行时使用的外部配置文件位于安装目录：
+再新开一个 PowerShell 窗口，执行：
 
-- `app/application-prod.yml`
+```powershell
+Set-Location "E:\学习\实验报告\软件过程与项目管理\实验3-敏捷项目开发综合实践-要求+报告模板for2023未来技术学生\project\frontend"
+npm install
+npm run dev
+```
 
-安装包中的这份配置默认连接私有数据库：
+说明：
 
-- `127.0.0.1:23306`
+- 第一次启动必须先执行 `npm install`
+- 如果以后依赖没有变化，可以直接执行 `npm run dev`
 
-因此最终用户安装后：
+前端启动成功后，默认访问地址：
 
-- 不需要自己装 Java
-- 不需要自己装 Node.js
-- 不需要自己配 MySQL 服务
+- `http://localhost:5173`
+
+### 5.8 访问系统
+
+浏览器打开：
+
+```text
+http://localhost:5173
+```
+
+如果前后端都启动正常，页面即可正常登录和使用。
+
+## 6. 一键脚本与手工命令的对应关系
+
+如果你使用 `start_project.bat`，它本质上对应的是下面这套流程：
+
+1. 检测 MySQL 服务是否存在
+2. 自动启动 MySQL 服务
+3. 按你的选择决定是否导入 `001_init.sql`
+4. 启动后端
+5. 启动前端
+
+所以：
+
+- 想省事时，用 `start_project.bat`
+- 想写实验报告或排查问题时，用第 5 节的手工命令
 
 ## 7. 初始账号
 
-系统已内置基础账号，可直接登录：
+系统初始化后可直接使用以下账号登录：
 
 | 角色 | 用户名 | 密码 |
 | --- | --- | --- |
@@ -189,63 +250,62 @@ powershell.exe -ExecutionPolicy Bypass -File ".\installer\build_installer.ps1" `
 补充说明：
 
 - `admin01` 可创建内部岗位账号，并审核学员注册申请
-- `executor01` 可处理学员注册审核，但不能创建内部岗位账号
-- 数据库中预置了一个待审核学员账号 `student03`，可用于验证注册审核流程
+- 数据库中预置了一个待审核学员账号 `student03`
 
-## 8. 已完成的验证
+## 8. 常见问题
 
-本次已完成以下验证：
+### 8.1 `Get-Service` 找不到 MySQL 服务
 
-- `build_delivery.ps1 -SkipTests` 可成功构建前后端交付产物
-- `installer/build_installer.ps1 -PrepareOnly` 可成功组装安装包 `staging` 目录
-- 私有数据库初始化脚本 `init_db.ps1` 已在纯 ASCII 路径下验证通过
-- 私有数据库启动脚本 `start_db.ps1` 已验证可拉起 `23306` 端口
-- `Inno Setup` 安装包已成功生成
+原因通常是：
 
-## 9. 常见问题
+- 本机没有安装 MySQL Server
+- MySQL 没有注册成 Windows 服务
 
-### 9.1 安装包构建脚本提示找不到 `ISCC.exe`
+处理建议：
 
-原因：
+1. 安装 MySQL Server 8.0
+2. 确保服务名能在 `Get-Service` 中查到
 
-- 本机没有安装 Inno Setup 6
-- 或安装路径不在脚本默认探测范围内
+### 8.2 `Get-Command mysql.exe` 找不到客户端
 
-处理办法：
+原因通常是：
 
-1. 安装 Inno Setup 6
-2. 重新执行 `installer/build_installer.ps1`
-3. 如仍未识别，可通过 `-IsccPath` 显式指定 `ISCC.exe`
+- 没装 MySQL Client
+- `PATH` 没配置
 
-### 9.2 安装包构建脚本提示找不到 MySQL 运行时目录
+处理建议：
 
-原因：
+1. 找到 MySQL `bin` 目录
+2. 加到系统环境变量 `PATH`
+3. 重新打开 PowerShell 再试
 
-- 本机没有安装 MySQL
-- 或 `mysqld.exe` 不在环境变量里
+### 8.3 `mvn spring-boot:run` 启动失败
 
-处理办法：
+优先检查：
 
-1. 确认本机存在可用的 MySQL 运行时目录
-2. 通过 `-MySqlRuntimeDir` 显式指定该目录
+- Java 版本是否满足 17+
+- Maven 是否安装成功
+- 数据库是否已启动
+- `hq_training` 数据库是否已创建并导入脚本
 
-### 9.3 在中文工作目录里直接运行 `staging` 中的私有 MySQL 脚本失败
+### 8.4 前端启动失败
 
-这是 MySQL Windows 运行时对路径兼容性的老问题。最终安装包默认安装到 `Program Files` 这类 ASCII 路径，实际安装使用不受影响。
+优先检查：
 
-### 9.4 仍想保留前端热更新开发方式
+- Node.js 版本是否满足 18+
+- 是否已经执行过 `npm install`
+- `frontend/node_modules` 是否完整
 
-可以继续使用：
+### 8.5 想重置数据库数据
+
+可以重新执行：
+
+```powershell
+cmd /c "mysql --default-character-set=utf8mb4 -h127.0.0.1 -P3306 -uroot -p123456 hq_training < backend\src\main\resources\db\mysql\001_init.sql"
+```
+
+或者直接运行：
 
 - `start_project.bat`
 
-但这属于开发态模式，不属于最终交付方式。
-
-## 10. 当前结果
-
-当前项目已经不只是“安装包方案文档”，而是已经具备完整的安装包产线与产物：
-
-- 安装包脚本：`installer/app.iss`
-- 安装包构建脚本：`installer/build_installer.ps1`
-- 安装后初始化与启停脚本：`installer/payload/scripts/`
-- 最终安装包：`installer/output/HQTrainingSetup.exe`
+然后在提示时选择 `Y`。
